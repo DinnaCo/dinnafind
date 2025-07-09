@@ -43,6 +43,7 @@ export const geofencingMiddleware: Middleware = store => next => async action =>
         await GeofencingService.addGeofence(geofence);
       }
       // Save a last update timestamp for notification suppression
+      //  TODO: test against update timestamp logic to see if we can remove the geofence add/remove
       await AsyncStorage.setItem('geofence_last_update', Date.now().toString());
       console.log(
         '[Geofencing] (Middleware) Synced geofences with bucket list:',
