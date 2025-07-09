@@ -1,7 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 import { type AuthState, type UserProfile } from '@/models/app-state';
-import { isDevelopment } from '@/utils/runtime';
 
 // Define a mock user for development
 const MOCK_USER: UserProfile = {

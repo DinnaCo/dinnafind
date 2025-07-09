@@ -4,8 +4,7 @@ import { call, put, takeLatest, select } from 'redux-saga/effects';
 
 import { foursquareService } from '@/api/foursquare';
 import { type BucketListItem } from '@/models/bucket-list';
-import { Venue } from '@/models/venue';
-import { type RootState } from '@/index';
+import { type RootState } from '@/store';
 import {
   fetchBucketList,
   fetchBucketListSuccess,

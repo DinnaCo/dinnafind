@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useGeofencing } from '@/hooks/useGeofencing';
-import GeofencingService from '@/services/GeofencingService';
+// Removed: import GeofencingService from '@/services/GeofencingService';
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
   selectMasterNotificationsEnabled,
@@ -41,47 +41,10 @@ export function AlertsScreen() {
     (item: any) => item.notificationsEnabled === true
   );
 
+  // Removed all geofence logic from handleMasterToggle
   const handleMasterToggle = async (value: boolean) => {
     dispatch(setMasterNotificationsEnabled(value));
-
-    // Always rebuild geofences based on current state
-    await GeofencingService.removeAllGeofences();
-
-    if (value) {
-      // Master ON: Track ALL restaurants with notifications enabled
-      for (const restaurant of bucketListItems as BucketListItem[]) {
-        if (
-          restaurant.venue &&
-          restaurant.venue.coordinates &&
-          typeof restaurant.venue.coordinates.latitude === 'number' &&
-          typeof restaurant.venue.coordinates.longitude === 'number'
-        ) {
-          await GeofencingService.addGeofence({
-            id: restaurant.id,
-            name: restaurant.venue.name,
-            latitude: restaurant.venue.coordinates.latitude,
-            longitude: restaurant.venue.coordinates.longitude,
-          });
-        }
-      }
-    } else {
-      // Master OFF: Still track individually enabled restaurants
-      for (const restaurant of restaurantsWithNotificationsEnabled as BucketListItem[]) {
-        if (
-          restaurant.venue &&
-          restaurant.venue.coordinates &&
-          typeof restaurant.venue.coordinates.latitude === 'number' &&
-          typeof restaurant.venue.coordinates.longitude === 'number'
-        ) {
-          await GeofencingService.addGeofence({
-            id: restaurant.id,
-            name: restaurant.venue.name,
-            latitude: restaurant.venue.coordinates.latitude,
-            longitude: restaurant.venue.coordinates.longitude,
-          });
-        }
-      }
-    }
+    // No geofence add/remove here
   };
 
   const restaurantsWithLocation = bucketListItems.filter((item: BucketListItem) => {
@@ -203,16 +166,7 @@ export function AlertsScreen() {
                       value={restaurant.notificationsEnabled === true}
                       onValueChange={enabled => {
                         dispatch(setNotificationEnabled({ id: restaurant.id as string, enabled }));
-                        if (enabled) {
-                          GeofencingService.addGeofence({
-                            id: restaurant.id as string,
-                            name,
-                            latitude: restaurant.venue?.coordinates?.latitude ?? 0,
-                            longitude: restaurant.venue?.coordinates?.longitude ?? 0,
-                          });
-                        } else {
-                          GeofencingService.removeGeofence(restaurant.id as string);
-                        }
+                        // No geofence add/remove here
                       }}
                       trackColor={{
                         false: theme.colors.grey4,

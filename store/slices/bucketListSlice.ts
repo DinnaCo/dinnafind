@@ -1,16 +1,7 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { foursquareService } from '@/api/foursquare';
-import {
-  type BucketListItem,
-  type BucketListFilter,
-  type BucketListState,
-} from '@/models/bucket-list';
-import { RootState } from '@/index';
-import { Venue, VenueSearchResponse } from '@/models/venue';
-
-// Helper function to get storage key for a user
-const getStorageKey = (userId: string) => `bucketList_${userId}`;
+import { type BucketListItem, type BucketListFilter } from '@/models/bucket-list';
+import { RootState } from '@/store';
 
 // Helper function to get user ID from state
 const getUserId = (state: RootState): string => {

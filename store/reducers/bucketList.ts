@@ -1,7 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { foursquareService } from '@/api/foursquare';
 import { type BucketListFilter, type BucketListItem } from '@/models/bucket-list';
-import { type RootState } from '@/index';
+import { type RootState } from '@/store';
 
 // Default mock user ID for development
 const MOCK_USER_ID = 'mock-user-1';

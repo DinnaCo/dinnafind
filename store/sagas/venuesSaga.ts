@@ -3,7 +3,7 @@ import { call, put, select, takeLatest } from 'redux-saga/effects';
 
 import { foursquareService } from '@/api/foursquare';
 import { type Coordinates, type Venue, type VenueSearchResponse } from '@/models/venue';
-import { type RootState } from '@/index';
+import { type RootState } from '@/store';
 import {
   fetchNearbyVenues,
   fetchNearbyVenuesFailure,
