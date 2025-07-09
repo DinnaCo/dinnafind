@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { type PayloadAction } from '@reduxjs/toolkit';
-import { call, put, takeLatest, select } from 'redux-saga/effects';
+import { call, put, takeLatest, select, delay, take, all, fork } from 'redux-saga/effects';
 
 import { foursquareService } from '@/api/foursquare';
 import { type BucketListItem } from '@/models/bucket-list';
@@ -18,9 +18,13 @@ import {
   removeFromBucketListFailure,
   markAsVisited,
   markAsVisitedFailure,
+  setNotificationEnabled,
+  setAllNotificationsEnabled,
+  setDistanceMiles,
 } from '@/store/slices/bucketListSlice';
 import { selectVenue } from '@/store/slices/venuesSlice';
 import { selectUser } from '@/store/slices/authSlice';
+import GeofencingService from '@/services/GeofencingService';
 
 /**
  * BucketList Saga
@@ -416,4 +420,54 @@ export function* watchBucketList() {
   yield takeLatest(updateBucketListItem.type, handleUpdateBucketListItem);
   yield takeLatest(removeFromBucketList.type, handleRemoveFromBucketList);
   yield takeLatest(markAsVisited.type, handleMarkAsVisited);
+}
+
+function* syncGeofencesWithBucketList() {
+  // Debounce: wait for 500ms after the last change
+  yield delay(500);
+  // Get the latest bucket list from state
+  const state: RootState = yield select();
+  const items = state.bucketList.items;
+  // Only include items with notificationsEnabled and coordinates
+  const geofences = items
+    .filter(item => item.notificationsEnabled && item.venue?.coordinates)
+    .map(item => ({
+      id: item.id,
+      name: item.venue.name,
+      latitude: item.venue.coordinates.latitude,
+      longitude: item.venue.coordinates.longitude,
+    }));
+  // Restart geofencing with the new set
+  yield call([GeofencingService, GeofencingService.removeAllGeofences]);
+  if (geofences.length > 0) {
+    for (const geofence of geofences) {
+      yield call([GeofencingService, GeofencingService.addGeofence], geofence);
+    }
+  }
+  // Save a last update timestamp for notification suppression
+  yield call([AsyncStorage, AsyncStorage.setItem], 'geofence_last_update', Date.now().toString());
+  console.log(
+    '[Geofencing] Synced geofences with bucket list:',
+    geofences.map(g => g.name)
+  );
+}
+
+function* watchBucketListGeofenceSync() {
+  // Listen for all relevant bucket list changes
+  while (true) {
+    yield take([
+      addToBucketList.fulfilled.type,
+      removeFromBucketList.fulfilled.type,
+      updateBucketListItem.fulfilled.type,
+      setNotificationEnabled.type,
+      setAllNotificationsEnabled.type,
+      setDistanceMiles.type,
+    ]);
+    yield* syncGeofencesWithBucketList();
+  }
+}
+
+// At the end of your saga file, fork this watcher
+export function* bucketListRootSaga() {
+  yield all([fork(watchBucketList), fork(watchBucketListGeofenceSync)]);
 }

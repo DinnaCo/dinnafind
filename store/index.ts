@@ -75,7 +75,7 @@ export const store = configureStore({
       immutableCheck: {
         warnAfter: 128,
       },
-    }).concat(sagaMiddleware), // <-- Only sagaMiddleware, not geofencingMiddleware
+    }).concat(sagaMiddleware, geofencingMiddleware),
   devTools: false,
   enhancers: getDefaultEnhancers => getDefaultEnhancers().concat(devToolsEnhancer()) as any,
 });

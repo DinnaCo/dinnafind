@@ -4,6 +4,8 @@ import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { getDistance, getDistanceString } from '../utils/distanceUtils';
 import { GeofencingEvent } from '@/store/slices/geofencingSlice';
+import { store } from '@/store'; // Import the Redux store
+import { selectDistanceMiles } from '@/store/slices/bucketListSlice';
 const NOTIFICATION_COOLDOWN = 500; // 2.5 minutes in milliseconds
 const GEOFENCE_TASK_NAME = 'DINNAFIND_GEOFENCE_TASK';
 export const GEOFENCE_RADIUS = 2000; // meters - reasonable walking distance
@@ -107,9 +109,19 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
           geofence.latitude,
           geofence.longitude
         );
-        console.log(`🗺️[Geofencing] 📏 Distance: ${distance} miles`);
-
-        if (now - lastTime > NOTIFICATION_COOLDOWN) {
+        // Read distanceMiles from Redux
+        const state = store.getState();
+        const distanceMiles = state.bucketList?.distanceMiles ?? 1.25;
+        const withinDistance = distance <= distanceMiles;
+        console.log(
+          `🗺️[Geofencing] 📏 Distance: ${distance} miles, Alert Distance: ${distanceMiles} miles`
+        );
+        if (withinDistance) {
+          console.log('🟢 [Geofencing] Within alert distance!');
+        } else {
+          console.log('🔴 [Geofencing] Outside alert distance.');
+        }
+        if (withinDistance && now - lastTime > NOTIFICATION_COOLDOWN) {
           // 5 minute cooldown
           await Notifications.scheduleNotificationAsync({
             content: {
@@ -133,13 +145,11 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
           });
 
           // Store the time of this notification
-          const lastNotificationTime = `last_notification_${geofence.id} ${now.toString()}`;
-          await AsyncStorage.setItem(lastNotificationTime, now.toString());
-          console.log('🔈🕦 lastNotificationTime ', JSON.stringify(lastNotificationTime, null, 4));
-          console.log(`🔈🔂[Geofencing] Notification sent for: ${geofence.restaurantName}`);
-        } else {
+          await AsyncStorage.setItem(`last_notification_${geofence.id}`, now.toString());
+          console.log(`🟢🔈[Geofencing] Notification sent for: ${geofence.restaurantName}`);
+        } else if (withinDistance) {
           console.log(
-            `⤵️🔵[Geofencing] Skipping notification for ${geofence.restaurantName} - cooldown active`
+            `🟡 [Geofencing] Cooldown active, not sending notification for: ${geofence.restaurantName}`
           );
         }
       }
