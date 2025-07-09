@@ -10,26 +10,26 @@ export function useGeofencing(options: UseGeofencingOptions = { autoStart: true 
   const [error, setError] = useState<string | null>(null);
   const [activeGeofences, setActiveGeofences] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (options.autoStart) {
-      initializeGeofencing();
-    }
-  }, []);
+  const updateActiveGeofences = () => {
+    const geofences = GeofencingService.getActiveGeofences();
+    setActiveGeofences(geofences.map(g => g.restaurantId));
+  };
 
-  const initializeGeofencing = async () => {
+  const initializeGeofencing = useCallback(async (_event = undefined) => {
     try {
-      await GeofencingService.initialize();
+      await GeofencingService.initialize(_event);
       setIsInitialized(true);
       updateActiveGeofences();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to initialize geofencing');
     }
-  };
+  }, []);
 
-  const updateActiveGeofences = () => {
-    const geofences = GeofencingService.getActiveGeofences();
-    setActiveGeofences(geofences.map(g => g.restaurantId));
-  };
+  useEffect(() => {
+    if (options.autoStart) {
+      initializeGeofencing();
+    }
+  }, [initializeGeofencing, options.autoStart]);
 
   const toggleGeofence = useCallback(
     async (restaurant: { id: string; name: string; latitude: number; longitude: number }) => {
@@ -48,7 +48,7 @@ export function useGeofencing(options: UseGeofencingOptions = { autoStart: true 
         setError(err instanceof Error ? err.message : 'Failed to toggle geofence');
       }
     },
-    [isInitialized]
+    [initializeGeofencing, isInitialized]
   );
 
   const isGeofenceActive = useCallback(

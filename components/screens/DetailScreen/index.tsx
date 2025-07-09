@@ -72,9 +72,9 @@ export const DetailScreen: React.FC = () => {
   // State for basic venue data when only ID is provided
   const [basicVenueData, setBasicVenueData] = useState<any>(null);
   const [isLoadingBasicData, setIsLoadingBasicData] = useState(false);
-
+  const { data, itemData } = params;
   // Debug logging
-  console.log('DetailScreen params:', params);
+  console.log('DetailScreen params:', JSON.stringify({ venueId, data, itemData }, null, 4));
 
   // Parse the venue data from various sources
   let venue = null;
@@ -195,11 +195,16 @@ export const DetailScreen: React.FC = () => {
   const isVenueSaved = !!savedVenue;
   const isVenueVisited = !!savedVenue?.visitedAt;
 
-  console.log('Checking if venue is saved:', {
-    venueId,
-    savedVenueIds: savedVenues.map(item => item.id),
-    isVenueSaved,
-  });
+  console.log(
+    'Checking if venue is saved:',
+    JSON.stringify({
+      venueId,
+      savedVenueIds: savedVenues.map(item => item.id),
+      isVenueSaved,
+    }),
+    null,
+    4
+  );
 
   // Show loading state when fetching basic data
   if (isLoadingBasicData || (!venue && params.venueId)) {

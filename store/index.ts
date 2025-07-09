@@ -12,6 +12,7 @@ import authReducer from './slices/authSlice';
 import bucketListReducer from './slices/bucketListSlice';
 import uiReducer from './slices/uiSlice';
 import venuesReducer from './slices/venuesSlice';
+import locationReducer from './slices/locationSlice';
 const createSagaMiddleware = require('redux-saga').default;
 
 // Import root saga
@@ -30,6 +31,7 @@ const rootReducer = {
   venues: venuesReducer,
   bucketList: bucketListReducer,
   ui: uiReducer,
+  location: locationReducer, // <-- Added location reducer
 };
 
 // Create persisted reducer
@@ -73,8 +75,7 @@ export const store = configureStore({
       immutableCheck: {
         warnAfter: 128,
       },
-    }).concat(sagaMiddleware, geofencingMiddleware),
-
+    }).concat(sagaMiddleware), // <-- Only sagaMiddleware, not geofencingMiddleware
   devTools: false,
   enhancers: getDefaultEnhancers => getDefaultEnhancers().concat(devToolsEnhancer()) as any,
 });
@@ -136,7 +137,7 @@ if (__DEV__) {
 
   // Log initial state
   console.log('🏪 Redux Store initialized');
-  console.log('📊 Initial State:', store.getState());
+  console.log('📊 Initial State:', JSON.stringify(store.getState(), null, 4));
 
   // Subscribe to state changes for debugging
   store.subscribe(() => {

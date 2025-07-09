@@ -1,16 +1,7 @@
 import { Icon, Slider } from '@rneui/themed';
-import React, { useEffect } from 'react';
-import {
-  Alert,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
-import { useGeofencing } from '@/hooks/useGeofencing';
+import React from 'react';
+import { Platform, SafeAreaView, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+
 // Removed: import GeofencingService from '@/services/GeofencingService';
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
@@ -25,21 +16,9 @@ import { BucketListItem } from '@/models/bucket-list';
 
 export function AlertsScreen() {
   const dispatch = useAppDispatch();
-  const { error, isInitialized } = useGeofencing();
   const bucketListItems = useAppSelector(state => state.bucketList.items);
   const masterEnabled = useAppSelector(selectMasterNotificationsEnabled);
   const distanceMiles = useAppSelector(selectDistanceMiles);
-
-  useEffect(() => {
-    if (error) {
-      Alert.alert('Location Permission Required', error);
-    }
-  }, [error]);
-
-  // Fix type error: ensure bucketListItems is typed, or use type guard
-  const restaurantsWithNotificationsEnabled = bucketListItems.filter(
-    (item: any) => item.notificationsEnabled === true
-  );
 
   // Removed all geofence logic from handleMasterToggle
   const handleMasterToggle = async (value: boolean) => {
@@ -108,7 +87,7 @@ export function AlertsScreen() {
           />
         </View>
 
-        {restaurantsWithLocation.length === 0 && isInitialized && (
+        {restaurantsWithLocation.length === 0 && (
           <View style={styles.emptyStateCard}>
             <Icon name="location-off" type="material" size={48} color={theme.colors.grey3} />
             <Text style={styles.emptyStateTitle}>No Restaurants to Track</Text>

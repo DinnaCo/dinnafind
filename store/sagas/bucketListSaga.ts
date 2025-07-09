@@ -58,7 +58,7 @@ function* handleFetchBucketList(): Generator<any, void, any> {
 
     // Enhance items with venue details if needed
     const enhancedItems = yield call(enhanceBucketListWithVenueDetails, items);
-    console.log('Enhanced items with venue details:', enhancedItems);
+    console.log('Enhanced items with venue details:', JSON.stringify(enhancedItems, null, 4));
 
     // Handle success
     yield put(fetchBucketListSuccess(enhancedItems));

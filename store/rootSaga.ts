@@ -1,10 +1,14 @@
 import { all, fork } from 'redux-saga/effects';
 
 import { watchAuth } from './sagas/authSaga';
-import { watchLocation } from './sagas/locationSaga';
 import { watchVenues } from './sagas/venuesSaga';
+import locationSaga from './sagas/locationSaga';
 
 // Root saga
 export function* rootSaga() {
-  yield all([fork(watchAuth), fork(watchLocation), fork(watchVenues)]);
+  yield all([
+    fork(watchAuth),
+    fork(watchVenues),
+    fork(locationSaga), // <-- Add locationSaga
+  ]);
 }

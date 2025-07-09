@@ -52,7 +52,7 @@ const getEnvVar = (key: string, defaultValue: string = ''): string => {
   }
 
   // Return default
-  console.warn(`⚠️ ${key} not found, using default:`, defaultValue);
+
   return defaultValue;
 };
 
