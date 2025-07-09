@@ -53,6 +53,7 @@ function RootLayoutContent() {
       // Navigate based on the deep link
       if (parsed.isRestaurant && parsed.restaurantId) {
         console.log('[DeepLink] Navigating to restaurant:', parsed.restaurantId);
+        console.log('[DeepLink] Query params:', parsed.queryParams);
 
         // For deep links, create minimal venue data
         const minimalVenueData = {
@@ -66,8 +67,16 @@ function RootLayoutContent() {
 
         const encodedData = encodeURIComponent(JSON.stringify(minimalVenueData));
 
-        // Navigate with both ID and encoded minimal data
-        router.push(`/detail?venueId=${parsed.restaurantId}&data=${encodedData}`);
+        // Check if we should auto-save this venue
+        const shouldAutoSave = parsed.queryParams?.save === 'true';
+
+        // Navigate with both ID and encoded minimal data, plus auto-save flag
+        const detailUrl = `/detail?venueId=${parsed.restaurantId}&data=${encodedData}${
+          shouldAutoSave ? '&autoSave=true' : ''
+        }` as const;
+
+        console.log('[DeepLink] Navigating to:', detailUrl);
+        router.push(detailUrl);
       } else if (parsed.isBucketList) {
         console.log('[DeepLink] Navigating to bucket list');
         router.push('/(tabs)/bucket-list');
@@ -94,6 +103,10 @@ function RootLayoutContent() {
         <Stack.Screen
           name="test-deferred-link"
           options={{ headerShown: true, title: 'Test Deep Links' }}
+        />
+        <Stack.Screen
+          name="test-venue-deep-links"
+          options={{ headerShown: true, title: 'Test Venue Deep Links' }}
         />
         <Stack.Screen name="[...unmatched]" />
         <Stack.Screen

@@ -14,6 +14,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Share,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -61,50 +62,50 @@ interface VenueDetails {
 }
 
 export const DetailScreen: React.FC = () => {
-  const params = useLocalSearchParams();
-  const dispatch = useDispatch();
-
   // State for venue details
   const [venueDetails, setVenueDetails] = useState<VenueDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
-
-  // State for basic venue data when only ID is provided
   const [basicVenueData, setBasicVenueData] = useState<any>(null);
   const [isLoadingBasicData, setIsLoadingBasicData] = useState(false);
+
+  const params = useLocalSearchParams();
+  const dispatch = useDispatch();
+
+  // Normalize venueId (strip query params)
+  let venue: any = null;
   const { data, itemData } = params;
-  // Debug logging
-  console.log('DetailScreen params:', JSON.stringify({ venueId, data, itemData }, null, 4));
-
-  // Parse the venue data from various sources
-  let venue = null;
-
-  // Priority 1: Check Redux store
   if (params.data) {
     try {
       const decodedData = decodeURIComponent(params.data as string);
       venue = JSON.parse(decodedData);
-      console.log('Using decoded venue data from URL params:', venue);
-    } catch (error) {
-      console.error('Error parsing encoded venue data:', error);
-    }
-  }
-  // Priority 3: Try to parse from itemData param
-  else if (params.itemData) {
+    } catch (error) {}
+  } else if (params.itemData) {
     try {
       venue = typeof params.itemData === 'string' ? JSON.parse(params.itemData) : params.itemData;
-      console.log('Using itemData param');
-    } catch (error) {
-      console.error('Error parsing venue data:', error);
-    }
+    } catch (error) {}
   }
-
-  // If we still don't have venue data but have fetched basic data, use it
   if (!venue && basicVenueData) {
     venue = basicVenueData;
   }
+  const normalizedVenueId = (venue?.id || venue?.fsq_id)?.split('?')[0];
 
-  console.log('Final venue data:', venue);
+  // Get saved venues to check if this one is already saved (normalize IDs)
+  const savedVenues = useAppSelector(state => state.bucketList.items);
+  const savedVenue =
+    venue && normalizedVenueId
+      ? savedVenues.find(item => {
+          const anyItem = item as any;
+          const itemId = typeof anyItem.id === 'string' ? anyItem.id.split('?')[0] : undefined;
+          const venueItemId =
+            anyItem.venue && typeof anyItem.venue.id === 'string'
+              ? anyItem.venue.id.split('?')[0]
+              : undefined;
+          return itemId === normalizedVenueId || venueItemId === normalizedVenueId;
+        })
+      : null;
+  const isVenueSaved = !!savedVenue;
+  const isVenueVisited = !!(savedVenue && (savedVenue as any).visitedAt);
 
   // Fetch venue details when component mounts or when we only have an ID
   useEffect(() => {
@@ -113,8 +114,15 @@ export const DetailScreen: React.FC = () => {
       if (!venue && params.venueId && !isLoadingBasicData && !basicVenueData) {
         setIsLoadingBasicData(true);
         try {
-          console.log('Fetching venue data for ID:', params.venueId);
-          const details = await foursquareV3Service.getPlacesDetails(params.venueId as string);
+          const cleanVenueId = (params.venueId as string).split('?')[0]; // Remove any query params
+          // Guard: Check for valid venueId
+          if (!cleanVenueId || typeof cleanVenueId !== 'string' || !cleanVenueId.trim()) {
+            setDetailsError('Invalid or missing venue ID');
+            setIsLoadingBasicData(false);
+            return;
+          }
+          console.log('Fetching venue data for ID:', cleanVenueId);
+          const details = await foursquareV3Service.getPlacesDetails(cleanVenueId);
 
           if (details) {
             // Create a basic venue object from the details
@@ -142,9 +150,11 @@ export const DetailScreen: React.FC = () => {
       // Regular flow for when we have venue data
       if (!venue) return;
 
-      const venueId = venue.fsq_id || venue.id;
-      if (!venueId) {
-        console.log('No venue ID available for fetching details');
+      const venueId = normalizedVenueId;
+      // Guard: Check for valid venueId
+      if (!venueId || typeof venueId !== 'string' || !venueId.trim()) {
+        setDetailsError('Invalid or missing venue ID');
+        setIsLoadingDetails(false);
         return;
       }
 
@@ -175,36 +185,47 @@ export const DetailScreen: React.FC = () => {
     };
 
     fetchVenueData();
-  }, [venue, params.venueId, basicVenueData, venueDetails, isLoadingBasicData]);
+  }, [venue, params.venueId, basicVenueData, venueDetails, isLoadingBasicData, normalizedVenueId]);
 
   // Fetch bucket list to make sure it's up to date
   useEffect(() => {
     dispatch(fetchBucketList() as unknown as AnyAction);
   }, [dispatch]);
 
-  // Get saved venues to check if this one is already saved
-  const savedVenues = useAppSelector(state => state.bucketList.items);
-  const venueId = venue?.id || venue?.fsq_id;
-  const savedVenue =
-    venue && venueId
-      ? savedVenues.find(item => {
-          // Check both the item ID and the venue ID within the item
-          return item.id === venueId || item.venue?.id === venueId;
-        })
-      : null;
-  const isVenueSaved = !!savedVenue;
-  const isVenueVisited = !!savedVenue?.visitedAt;
-
-  console.log(
-    'Checking if venue is saved:',
-    JSON.stringify({
-      venueId,
-      savedVenueIds: savedVenues.map(item => item.id),
-      isVenueSaved,
-    }),
-    null,
-    4
-  );
+  // Handle auto-save from deep link
+  const [hasAutoSaved, setHasAutoSaved] = useState(false);
+  useEffect(() => {
+    const shouldAutoSave = params.autoSave === 'true';
+    if (
+      shouldAutoSave &&
+      venue &&
+      !isVenueSaved &&
+      !isLoadingBasicData &&
+      !isLoadingDetails &&
+      !hasAutoSaved
+    ) {
+      setHasAutoSaved(true);
+      console.log('[AutoSave] Auto-saving venue from deep link:', venue);
+      // Make sure the venue has an fsq_id for compatibility
+      const venueToSave = venue.fsq_id ? venue : { ...venue, fsq_id: normalizedVenueId };
+      dispatch(addToBucketList(venueToSave) as any);
+      setTimeout(() => {
+        Alert.alert('Saved!', `${venue?.name || 'Restaurant'} has been added to your bucket list!`);
+      }, 500);
+      setTimeout(() => {
+        dispatch(fetchBucketList() as unknown as AnyAction);
+      }, 1000);
+    }
+  }, [
+    venue,
+    isVenueSaved,
+    isLoadingBasicData,
+    isLoadingDetails,
+    params.autoSave,
+    dispatch,
+    hasAutoSaved,
+    normalizedVenueId,
+  ]);
 
   // Show loading state when fetching basic data
   if (isLoadingBasicData || (!venue && params.venueId)) {
@@ -278,19 +299,15 @@ export const DetailScreen: React.FC = () => {
 
   const heroImageUrl = getHeroImageUrl();
 
-  // Handle saving venue to bucket list
+  // Handle saving venue to bucket list (normalize ID)
   const handleSaveVenue = () => {
     console.log('Save button pressed, venue:', venue);
-
     if (!isVenueSaved) {
       // Make sure the venue has an fsq_id for compatibility
-      const venueToSave = venue.fsq_id ? venue : { ...venue, fsq_id: venue.id };
+      const venueToSave = venue.fsq_id ? venue : { ...venue, fsq_id: normalizedVenueId };
       console.log('Dispatching addToBucketList with:', venueToSave);
-
       dispatch(addToBucketList(venueToSave) as any);
       Alert.alert('Saved', `${venueName} has been added to your bucket list!`);
-
-      // Refresh the bucket list after saving
       setTimeout(() => {
         dispatch(fetchBucketList() as unknown as AnyAction);
       }, 500);
@@ -334,13 +351,23 @@ export const DetailScreen: React.FC = () => {
   };
 
   // Handle sharing the venue
-  const handleShareVenue = () => {
-    const message = `Check out ${venueName} - ${venueCategory}\n${venueAddress}`;
-
-    if (Platform.OS === 'ios') {
-      Alert.alert('Share', 'Sharing functionality would be implemented here', [{ text: 'OK' }]);
+  const handleShareVenue = async () => {
+    const venueId = venue?.id || venue?.fsq_id;
+    if (venueId) {
+      // Generate a deep link that will auto-save the venue
+      const deepLink = `dinnafind://restaurant/${venueId}?save=true`;
+      const message = `Check out ${venueName} - ${venueCategory}\n${venueAddress}\n\nSave to your bucket list: ${deepLink}`;
+      try {
+        await Share.share({
+          message,
+          url: deepLink,
+          title: venueName,
+        });
+      } catch (error) {
+        Alert.alert('Error', 'Failed to open share dialog');
+      }
     } else {
-      Alert.alert('Share', message, [{ text: 'OK' }]);
+      Alert.alert('Error', 'Unable to generate share link - venue ID not available');
     }
   };
 

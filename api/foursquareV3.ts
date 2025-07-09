@@ -193,5 +193,32 @@ export class FoursquareV3Service {
   }
 }
 
+function normalizeVenueId(venueId: string): string {
+  return venueId.split('?')[0];
+}
+
+export async function getPlacesDetails(venueId: string) {
+  const cleanVenueId = normalizeVenueId(venueId);
+  const searchParams = new URLSearchParams({
+    fields: 'fsq_id,name,geocodes,location,photos,rating',
+    session_token: 'sessionToken',
+  }).toString();
+  const url = `https://api.foursquare.com/v3/places/${cleanVenueId}?${searchParams}`;
+  const response = await fetch(url, {
+    headers: {
+      Authorization: FOURSQUARE_API_KEY || 'dev-api-key', // Replace with your actual key or config
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error('Venue details fetch failed:', text);
+    throw new Error(`Failed to fetch venue details: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 // Export a singleton instance
 export const foursquareV3Service = FoursquareV3Service.getInstance();

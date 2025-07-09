@@ -114,6 +114,15 @@ export function ProfileScreen() {
               <Icon name="chevron-right" type="material" size={24} color={theme.colors.grey3} />
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push('/test-venue-deep-links')}
+            >
+              <Icon name="restaurant" type="material" size={24} color={theme.colors.grey1} />
+              <Text style={styles.menuItemText}>Test Venue Deep Links</Text>
+              <Icon name="chevron-right" type="material" size={24} color={theme.colors.grey3} />
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.menuItem} onPress={clearBucketList}>
               <Icon name="delete" type="material" size={24} color={theme.colors.grey1} />
               <Text style={styles.menuItemText}>Clear Bucket List</Text>
