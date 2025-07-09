@@ -258,22 +258,10 @@ export const BucketListScreen: React.FC = () => {
   };
 
   const handleItemPress = (item: BucketListItem) => {
-    // Encode essential venue data as URL parameter
-    const essentialData = {
-      id: item.venue.id,
-      name: item.venue.name,
-      categories: item.venue.categories || [],
-      location: item.venue.location || {},
-    };
-
-    const encodedData = encodeURIComponent(JSON.stringify(essentialData));
-
-    // Navigate with venue ID and encoded data
     router.push({
       pathname: '/detail',
       params: {
         venueId: item.venue.id,
-        data: encodedData,
       },
     });
   };

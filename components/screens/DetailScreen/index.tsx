@@ -21,10 +21,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import MapView, { Marker } from 'react-native-maps';
 import { useDispatch } from 'react-redux';
-import { foursquareV3Service } from '@/api/foursquareV3';
-import { useAppSelector } from '@/store';
 import { addToBucketList, fetchBucketList } from '@/store/slices/bucketListSlice';
 import { AnyAction } from 'redux';
+import { getVenueDetails, StandardizedVenueDetails } from '@/api/venueDetailsService';
+import { useAppSelector } from '@/store';
 
 // Get screen dimensions
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -32,203 +32,58 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // Default icon for when venue doesn't have photos - using the highest resolution
 const DEFAULT_ICON = 'https://ss3.4sqi.net/img/categories_v2/food/default_512.png';
 
-interface VenueDetails {
-  fsq_id: string;
-  name: string;
-  geocodes: {
-    main: {
-      latitude: number;
-      longitude: number;
-    };
-  };
-  location: {
-    formatted_address: string;
-    address: string;
-    locality: string;
-    region: string;
-    postcode: string;
-    country: string;
-  };
-  photos: {
-    id: string;
-    created_at: string;
-    prefix: string;
-    suffix: string;
-    width: number;
-    height: number;
-    classifications: string[];
-  }[];
-  rating: number;
-}
-
 export const DetailScreen: React.FC = () => {
-  // State for venue details
-  const [venueDetails, setVenueDetails] = useState<VenueDetails | null>(null);
+  const [venueDetails, setVenueDetails] = useState<StandardizedVenueDetails | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
-  const [basicVenueData, setBasicVenueData] = useState<any>(null);
-  const [isLoadingBasicData, setIsLoadingBasicData] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   const params = useLocalSearchParams();
   const dispatch = useDispatch();
 
-  // Normalize venueId (strip query params)
-  let venue: any = null;
-  const { data, itemData } = params;
-  if (params.data) {
-    try {
-      const decodedData = decodeURIComponent(params.data as string);
-      venue = JSON.parse(decodedData);
-    } catch (error) {}
-  } else if (params.itemData) {
-    try {
-      venue = typeof params.itemData === 'string' ? JSON.parse(params.itemData) : params.itemData;
-    } catch (error) {}
-  }
-  if (!venue && basicVenueData) {
-    venue = basicVenueData;
-  }
-  const normalizedVenueId = (venue?.id || venue?.fsq_id)?.split('?')[0];
+  // Always use venueId from params
+  const venueId = typeof params.venueId === 'string' ? params.venueId.split('?')[0] : undefined;
 
   // Get saved venues to check if this one is already saved (normalize IDs)
   const savedVenues = useAppSelector(state => state.bucketList.items);
   const savedVenue =
-    venue && normalizedVenueId
-      ? savedVenues.find(item => {
-          const anyItem = item as any;
-          const itemId = typeof anyItem.id === 'string' ? anyItem.id.split('?')[0] : undefined;
-          const venueItemId =
-            anyItem.venue && typeof anyItem.venue.id === 'string'
-              ? anyItem.venue.id.split('?')[0]
-              : undefined;
-          return itemId === normalizedVenueId || venueItemId === normalizedVenueId;
-        })
-      : null;
+    venueId &&
+    savedVenues.find(item => {
+      const anyItem = item as any;
+      const itemId = typeof anyItem.id === 'string' ? anyItem.id.split('?')[0] : undefined;
+      const venueItemId =
+        anyItem.venue && typeof anyItem.venue.id === 'string'
+          ? anyItem.venue.id.split('?')[0]
+          : undefined;
+      return itemId === venueId || venueItemId === venueId;
+    });
   const isVenueSaved = !!savedVenue;
   const isVenueVisited = !!(savedVenue && (savedVenue as any).visitedAt);
 
-  // Fetch venue details when component mounts or when we only have an ID
+  // Fetch venue details when component mounts or venueId changes
   useEffect(() => {
-    const fetchVenueData = async () => {
-      // If we only have a venueId and no venue data, fetch basic data first
-      if (!venue && params.venueId && !isLoadingBasicData && !basicVenueData) {
-        setIsLoadingBasicData(true);
-        try {
-          const cleanVenueId = (params.venueId as string).split('?')[0]; // Remove any query params
-          // Guard: Check for valid venueId
-          if (!cleanVenueId || typeof cleanVenueId !== 'string' || !cleanVenueId.trim()) {
-            setDetailsError('Invalid or missing venue ID');
-            setIsLoadingBasicData(false);
-            return;
-          }
-          console.log('Fetching venue data for ID:', cleanVenueId);
-          const details = await foursquareV3Service.getPlacesDetails(cleanVenueId);
-
-          if (details) {
-            // Create a basic venue object from the details
-            const basicVenue = {
-              id: details.fsq_id,
-              fsq_id: details.fsq_id,
-              name: details.name,
-              categories: details.categories || [],
-              location: details.location,
-              geocodes: details.geocodes,
-              referralId: details.fsq_id,
-            };
-            setBasicVenueData(basicVenue);
-            setVenueDetails(details);
-          }
-        } catch (error) {
-          console.error('Error fetching basic venue data:', error);
-          setDetailsError('Failed to load venue information');
-        } finally {
-          setIsLoadingBasicData(false);
-        }
-        return;
-      }
-
-      // Regular flow for when we have venue data
-      if (!venue) return;
-
-      const venueId = normalizedVenueId;
-      // Guard: Check for valid venueId
-      if (!venueId || typeof venueId !== 'string' || !venueId.trim()) {
-        setDetailsError('Invalid or missing venue ID');
-        setIsLoadingDetails(false);
-        return;
-      }
-
-      // Skip if we already have venue details
-      if (venueDetails && venueDetails.fsq_id === venueId) {
-        return;
-      }
-
-      setIsLoadingDetails(true);
-      setDetailsError(null);
-
-      try {
-        console.log('Fetching venue details for ID:', venueId);
-        const details = await foursquareV3Service.getPlacesDetails(venueId);
-
-        if (details) {
-          console.log('Venue details fetched successfully');
-          setVenueDetails(details);
-        } else {
-          setDetailsError('Failed to fetch venue details');
-        }
-      } catch (error) {
-        console.error('Error fetching venue details:', error);
+    if (!venueId) return;
+    setIsLoadingDetails(true);
+    setDetailsError(null);
+    getVenueDetails(venueId)
+      .then(details => {
+        setVenueDetails(details);
+      })
+      .catch(error => {
         setDetailsError('Failed to load venue details');
-      } finally {
+      })
+      .finally(() => {
         setIsLoadingDetails(false);
-      }
-    };
-
-    fetchVenueData();
-  }, [venue, params.venueId, basicVenueData, venueDetails, isLoadingBasicData, normalizedVenueId]);
+      });
+  }, [venueId]);
 
   // Fetch bucket list to make sure it's up to date
   useEffect(() => {
     dispatch(fetchBucketList() as unknown as AnyAction);
   }, [dispatch]);
 
-  // Handle auto-save from deep link
-  const [hasAutoSaved, setHasAutoSaved] = useState(false);
-  useEffect(() => {
-    const shouldAutoSave = params.autoSave === 'true';
-    if (
-      shouldAutoSave &&
-      venue &&
-      !isVenueSaved &&
-      !isLoadingBasicData &&
-      !isLoadingDetails &&
-      !hasAutoSaved
-    ) {
-      setHasAutoSaved(true);
-      console.log('[AutoSave] Auto-saving venue from deep link:', venue);
-      // Make sure the venue has an fsq_id for compatibility
-      const venueToSave = venue.fsq_id ? venue : { ...venue, fsq_id: normalizedVenueId };
-      dispatch(addToBucketList(venueToSave) as any);
-      setTimeout(() => {
-        Alert.alert('Saved!', `${venue?.name || 'Restaurant'} has been added to your bucket list!`);
-      }, 500);
-      setTimeout(() => {
-        dispatch(fetchBucketList() as unknown as AnyAction);
-      }, 1000);
-    }
-  }, [
-    venue,
-    isVenueSaved,
-    isLoadingBasicData,
-    isLoadingDetails,
-    params.autoSave,
-    dispatch,
-    hasAutoSaved,
-    normalizedVenueId,
-  ]);
-
-  // Show loading state when fetching basic data
-  if (isLoadingBasicData || (!venue && params.venueId)) {
+  // Show loading state when fetching details
+  if (isLoadingDetails || !venueDetails) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
@@ -240,13 +95,13 @@ export const DetailScreen: React.FC = () => {
   }
 
   // Fallback for when no venue data is available
-  if (!venue) {
+  if (!venueDetails) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Ionicons color="#FF4500" name="alert-circle-outline" size={64} />
           <Text style={styles.errorText}>Venue data not available</Text>
-          <Text style={styles.debugText}>Debug: params = {JSON.stringify(params)}</Text>
+          <Text style={styles.debugText}>Debug: params = {JSON.stringify(params, null, 2)}</Text>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
@@ -255,58 +110,57 @@ export const DetailScreen: React.FC = () => {
     );
   }
 
-  // Using venue details if available, otherwise fallback to basic venue data
-  const venueName = (venueDetails?.name || venue.name) ?? 'Restaurant';
-
-  // Handle category - could be in categories array or single category field
+  // Use standardized venue details everywhere
+  const venueName = venueDetails.name;
   const venueCategory =
-    venue.categories && venue.categories.length > 0
-      ? venue.categories[0].name
-      : venue.category ?? 'Restaurant';
-
-  // Handle address - prioritize venue details, then fallback to basic venue data
+    venueDetails.categories && venueDetails.categories.length > 0
+      ? venueDetails.categories[0].name
+      : 'Restaurant';
   const venueAddress =
-    (venueDetails?.location?.formatted_address ||
-      venue.location?.formattedAddress ||
-      venue.location?.formatted_address ||
-      venue.address) ??
+    venueDetails.location?.formatted_address ||
+    venueDetails.location?.formattedAddress ||
+    venueDetails.location?.address ||
     'Address not available';
 
-  // Get photos from venue details or fallback to category icon
+  let iconUrl = DEFAULT_ICON;
+  if (
+    venueDetails.categories &&
+    venueDetails.categories.length > 0 &&
+    venueDetails.categories[0].icon &&
+    venueDetails.categories[0].icon.prefix &&
+    venueDetails.categories[0].icon.suffix
+  ) {
+    iconUrl = `${venueDetails.categories[0].icon.prefix}88${venueDetails.categories[0].icon.suffix}`;
+  }
+
   const getHeroImageUrl = () => {
-    // If we have venue details with photos, use the first photo
-    if (venueDetails?.photos && venueDetails.photos.length > 0) {
+    if (venueDetails.photos && venueDetails.photos.length > 0) {
       const photo = venueDetails.photos[0];
-      // Use a large size for the hero image (original size or 800px)
-      const size = photo.width > 800 ? 'original' : '800';
+      const size = photo.width && photo.width > 800 ? 'original' : '800';
       return `${photo.prefix}${size}${photo.suffix}`;
     }
-
-    // Fallback to category icon
     if (
-      venue.categories &&
-      venue.categories.length > 0 &&
-      venue.categories[0].icon &&
-      venue.categories[0].icon.prefix &&
-      venue.categories[0].icon.suffix
+      venueDetails.categories &&
+      venueDetails.categories.length > 0 &&
+      venueDetails.categories[0].icon &&
+      venueDetails.categories[0].icon.prefix &&
+      venueDetails.categories[0].icon.suffix
     ) {
-      // Use the highest resolution icon (512px)
-      return `${venue.categories[0].icon.prefix}512${venue.categories[0].icon.suffix}`;
-    }
+      const iconUrl = `${venueDetails.categories[0].icon.prefix}512${venueDetails.categories[0].icon.suffix}`;
+      console.log('🛑 iconUrl', iconUrl);
 
+      return `${iconUrl}`;
+    }
     return DEFAULT_ICON;
   };
-
   const heroImageUrl = getHeroImageUrl();
 
-  // Handle saving venue to bucket list (normalize ID)
+  console.log('heroImageUrl', heroImageUrl);
+
+  // Handle saving venue to bucket list
   const handleSaveVenue = () => {
-    console.log('Save button pressed, venue:', venue);
     if (!isVenueSaved) {
-      // Make sure the venue has an fsq_id for compatibility
-      const venueToSave = venue.fsq_id ? venue : { ...venue, fsq_id: normalizedVenueId };
-      console.log('Dispatching addToBucketList with:', venueToSave);
-      dispatch(addToBucketList(venueToSave) as any);
+      dispatch(addToBucketList(venueDetails) as any);
       Alert.alert('Saved', `${venueName} has been added to your bucket list!`);
       setTimeout(() => {
         dispatch(fetchBucketList() as unknown as AnyAction);
@@ -318,24 +172,13 @@ export const DetailScreen: React.FC = () => {
 
   // Handle opening maps for directions
   const handleGetDirections = () => {
-    // Check for coordinates in different possible locations, prioritize venue details
-    const lat =
-      venueDetails?.geocodes?.main?.latitude ||
-      venue.location?.lat ||
-      venue.coordinates?.latitude ||
-      venue.geocodes?.main?.latitude;
-    const lng =
-      venueDetails?.geocodes?.main?.longitude ||
-      venue.location?.lng ||
-      venue.coordinates?.longitude ||
-      venue.geocodes?.main?.longitude;
-
+    const lat = venueDetails.geocodes?.main?.latitude;
+    const lng = venueDetails.geocodes?.main?.longitude;
     if (lat && lng) {
       const url = Platform.select({
         ios: `maps:?q=${venueName}&ll=${lat},${lng}`,
         android: `geo:${lat},${lng}?q=${venueName}`,
       });
-
       if (url) {
         Linking.canOpenURL(url).then(supported => {
           if (supported) {
@@ -352,22 +195,16 @@ export const DetailScreen: React.FC = () => {
 
   // Handle sharing the venue
   const handleShareVenue = async () => {
-    const venueId = venue?.id || venue?.fsq_id;
-    if (venueId) {
-      // Generate a deep link that will auto-save the venue
-      const deepLink = `dinnafind://restaurant/${venueId}?save=true`;
-      const message = `Check out ${venueName} - ${venueCategory}\n${venueAddress}\n\nSave to your bucket list: ${deepLink}`;
-      try {
-        await Share.share({
-          message,
-          url: deepLink,
-          title: venueName,
-        });
-      } catch (error) {
-        Alert.alert('Error', 'Failed to open share dialog');
-      }
-    } else {
-      Alert.alert('Error', 'Unable to generate share link - venue ID not available');
+    const deepLink = `dinnafind://restaurant/${venueDetails.id}?save=true`;
+    const message = `Check out ${venueName} - ${venueCategory}\n${venueAddress}\n\nSave to your bucket list: ${deepLink}`;
+    try {
+      await Share.share({
+        message,
+        url: deepLink,
+        title: venueName,
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open share dialog');
     }
   };
 
@@ -387,7 +224,17 @@ export const DetailScreen: React.FC = () => {
 
         {/* Hero image section */}
         <View style={styles.heroContainer}>
-          <Image resizeMode="cover" source={{ uri: heroImageUrl }} style={styles.heroImage} />
+          {/* Placeholder image (shown until real image loads) */}
+          {!imageLoaded && (
+            <Image resizeMode="cover" source={{ uri: iconUrl }} style={styles.heroImage} />
+          )}
+          {/* Real image (shown after load) */}
+          <Image
+            resizeMode="cover"
+            source={{ uri: heroImageUrl }}
+            style={[styles.heroImage, !imageLoaded && { display: 'none' }]}
+            onLoad={() => setImageLoaded(true)}
+          />
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryText}>{venueCategory}</Text>
           </View>
@@ -426,16 +273,8 @@ export const DetailScreen: React.FC = () => {
 
           {/* Map section if coordinates are available */}
           {(() => {
-            const lat =
-              venueDetails?.geocodes?.main?.latitude ||
-              venue.location?.lat ||
-              venue.coordinates?.latitude ||
-              venue.geocodes?.main?.latitude;
-            const lng =
-              venueDetails?.geocodes?.main?.longitude ||
-              venue.location?.lng ||
-              venue.coordinates?.longitude ||
-              venue.geocodes?.main?.longitude;
+            const lat = venueDetails.geocodes?.main?.latitude;
+            const lng = venueDetails.geocodes?.main?.longitude;
 
             if (lat && lng) {
               return (
