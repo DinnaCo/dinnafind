@@ -56,6 +56,18 @@ class GeofencingService {
       }))
     );
   }
+
+  // Debug method to log all geofences
+  logAllGeofences() {
+    console.log('[GeofencingService] Current geofences:', JSON.stringify(this.geofences, null, 2));
+  }
 }
 
-export default new GeofencingService();
+const geofencingServiceInstance = new GeofencingService();
+export default geofencingServiceInstance;
+
+if (__DEV__) {
+  (globalThis as any).logAllGeofences = () => {
+    geofencingServiceInstance.logAllGeofences();
+  };
+}

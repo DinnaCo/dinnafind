@@ -25,16 +25,13 @@ import { BucketListItem } from '@/models/bucket-list';
 
 export function AlertsScreen() {
   const dispatch = useAppDispatch();
-  const { error, isInitialized } = useGeofencing();
   const bucketListItems = useAppSelector(state => state.bucketList.items);
   const masterEnabled = useAppSelector(selectMasterNotificationsEnabled);
   const distanceMiles = useAppSelector(selectDistanceMiles);
 
   useEffect(() => {
-    if (error) {
-      Alert.alert('Location Permission Required', error);
-    }
-  }, [error]);
+    // No longer needed as per edit hint
+  }, []);
 
   // Fix type error: ensure bucketListItems is typed, or use type guard
   const restaurantsWithNotificationsEnabled = bucketListItems.filter(
@@ -45,8 +42,6 @@ export function AlertsScreen() {
     dispatch(setMasterNotificationsEnabled(value));
 
     // Always rebuild geofences based on current state
-    await GeofencingService.removeAllGeofences();
-
     if (value) {
       // Master ON: Track ALL restaurants with notifications enabled
       for (const restaurant of bucketListItems as BucketListItem[]) {
@@ -61,29 +56,18 @@ export function AlertsScreen() {
             name: restaurant.venue.name,
             latitude: restaurant.venue.coordinates.latitude,
             longitude: restaurant.venue.coordinates.longitude,
+            radius: distanceMiles * 1609.34,
           });
         }
       }
     } else {
-      // Master OFF: Still track individually enabled restaurants
+      // Master OFF: Remove all geofences
       for (const restaurant of bucketListItems as BucketListItem[]) {
-        if (
-          restaurant.venue &&
-          restaurant.venue.coordinates &&
-          typeof restaurant.venue.coordinates.latitude === 'number' &&
-          typeof restaurant.venue.coordinates.longitude === 'number'
-        ) {
-          await GeofencingService.addGeofence({
-            id: restaurant.id,
-            name: restaurant.venue.name,
-            latitude: restaurant.venue.coordinates.latitude,
-            longitude: restaurant.venue.coordinates.longitude,
-          });
-        }
+        await GeofencingService.removeGeofence(restaurant.id);
       }
     }
   };
-  console.log('🔍 Bucket list items:', bucketListItems);
+  console.log('🔍 Bucket list items:', JSON.stringify(bucketListItems, null, 2));
 
   const restaurantsWithLocation = bucketListItems.filter((item: BucketListItem) => {
     return (
@@ -147,7 +131,7 @@ export function AlertsScreen() {
           />
         </View>
 
-        {bucketListItems.length === 0 && isInitialized && (
+        {bucketListItems.length === 0 && (
           <View style={styles.emptyStateCard}>
             <Icon name="location-off" type="material" size={48} color={theme.colors.grey3} />
             <Text style={styles.emptyStateTitle}>No Restaurants to Track</Text>
@@ -199,6 +183,7 @@ export function AlertsScreen() {
                             name,
                             latitude: restaurant.venue?.coordinates?.latitude ?? 0,
                             longitude: restaurant.venue?.coordinates?.longitude ?? 0,
+                            radius: distanceMiles * 1609.34,
                           });
                         } else {
                           GeofencingService.removeGeofence(restaurant.id as string);
