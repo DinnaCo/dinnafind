@@ -4,23 +4,15 @@ export interface StandardizedVenueDetails {
   id: string;
   fsq_id: string;
   name: string;
-<<<<<<< HEAD
   iconUrl?: string;
   categories: {
-=======
-  categories: Array<{
->>>>>>> main
     id: string;
     name: string;
     icon?: {
       prefix?: string;
       suffix?: string;
     };
-<<<<<<< HEAD
   }[];
-=======
-  }>;
->>>>>>> main
   location: {
     address?: string;
     city?: string;
@@ -42,22 +34,14 @@ export interface StandardizedVenueDetails {
       longitude?: number;
     };
   };
-<<<<<<< HEAD
   photos?: {
-=======
-  photos?: Array<{
->>>>>>> main
     id: string;
     prefix?: string;
     suffix?: string;
     width?: number;
     height?: number;
     created_at?: string;
-<<<<<<< HEAD
   }[];
-=======
-  }>;
->>>>>>> main
   rating?: number;
   ratingColor?: string;
   price?: {
