@@ -105,13 +105,33 @@ export function parseDeepLink(url: string) {
 
       // Handle different URL patterns
       if ((firstPart === 'restaurant' || firstPart === 'restauraunt') && restParts.length > 0) {
+        // Parse query params if any
+        const queryStart = pathPart.indexOf('?');
+        const queryParams: Record<string, string> = {};
+        let cleanRestaurantId = restParts[0];
+
+        if (queryStart > -1) {
+          const queryString = pathPart.substring(queryStart + 1);
+          const pairs = queryString.split('&');
+          pairs.forEach(pair => {
+            const [key, value] = pair.split('=');
+            if (key) queryParams[key] = decodeURIComponent(value || '');
+          });
+
+          // Clean the restaurant ID by removing query parameters
+          const idQueryStart = cleanRestaurantId.indexOf('?');
+          if (idQueryStart > -1) {
+            cleanRestaurantId = cleanRestaurantId.substring(0, idQueryStart);
+          }
+        }
+
         return {
           path: pathPart,
           isRestaurant: true,
-          restaurantId: restParts[0],
+          restaurantId: cleanRestaurantId,
           isAuth: false,
           isBucketList: false,
-          queryParams: {},
+          queryParams,
         };
       } else if (firstPart === 'bucket-list') {
         return {
