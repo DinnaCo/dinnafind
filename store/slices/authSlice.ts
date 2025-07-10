@@ -9,7 +9,6 @@ const MOCK_USER: UserProfile = {
   displayName: 'Test User',
   createdAt: 0,
   lastLogin: 0,
-  getDisplayName: () => MOCK_USER.displayName ?? MOCK_USER.email,
 };
 
 // Define the initial state for the auth slice
@@ -18,9 +17,6 @@ const initialState: AuthState = {
   user: null, // No user initially
   loading: false,
   error: null,
-  getDisplayName: () => {
-    return 'Test User';
-  },
 };
 
 // Create the auth slice with reducers for login, logout, and error handling
@@ -76,14 +72,6 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
     },
-    getDisplayName(state, action: PayloadAction<UserProfile>) {
-      state.isAuthenticated = true;
-      state.user = action.payload;
-      state.loading = false;
-      state.error = null;
-      state.getDisplayName = () =>
-        action.payload.displayName ?? action.payload.email ?? 'Test User';
-    },
   },
 });
 
@@ -97,7 +85,6 @@ export const {
   logoutFailure,
   clearError,
   resetToMockUser,
-  getDisplayName,
 } = authSlice.actions;
 
 // Export the reducer as the default export
@@ -108,6 +95,10 @@ export const selectUser = (state: { auth: AuthState }) => state.auth.user;
 export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
 export const selectAuthLoading = (state: { auth: AuthState }) => state.auth.loading;
 export const selectAuthError = (state: { auth: AuthState }) => state.auth.error;
+
+// Add a selector for display name
+export const selectDisplayName = (state: { auth: AuthState }) =>
+  state.auth.user?.displayName || state.auth.user?.email || 'Test User';
 
 // Export types for use in sagas and components
 export type LoginPayload = { email: string; password: string };

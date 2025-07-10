@@ -6,8 +6,34 @@ import { type Coordinates } from './venue';
 export interface BucketListVenue {
   id: string;
   name: string;
-  category: string;
-  address: string;
+  // New schema fields
+  categories?: {
+    id: string;
+    name: string;
+    icon?: {
+      prefix?: string;
+      suffix?: string;
+    };
+  }[];
+  location?: {
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postalCode?: string;
+    neighborhood?: string[];
+    formattedAddress?: string;
+    crossStreet?: string;
+    lat?: number;
+    lng?: number;
+    locality?: string;
+    region?: string;
+    formatted_address?: string;
+  };
+  // Legacy/compat fields
+  category?: string;
+  iconUrl?: string;
+  address?: string;
   coordinates?: Coordinates;
   photo?: string;
   heroImageUrl?: string;

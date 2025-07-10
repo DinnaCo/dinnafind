@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { combineReducers, configureStore } from '@reduxjs/toolkit';
 import { useDispatch, useSelector, type TypedUseSelectorHook } from 'react-redux';
-import { persistReducer } from 'redux-persist';
+import { persistReducer, persistStore } from 'redux-persist';
 import devToolsEnhancer from 'redux-devtools-expo-dev-plugin';
 
 import { rootSaga } from './rootSaga';
@@ -83,12 +83,12 @@ export const store = configureStore({
 // Run saga middleware
 sagaMiddleware.run(rootSaga);
 
-// // Create persistor
-// export const persistor = persistStore(store, null, () => {
-//   if (process.env.EXPO_DEV === 'development') {
-//     console.log('✅ Redux persist rehydration complete');
-//   }
-// });
+// Create persistor
+export const persistor = persistStore(store, null, () => {
+  if (process.env.EXPO_DEV === 'development') {
+    console.log('✅ Redux persist rehydration complete');
+  }
+});
 
 // Export types
 export type RootState = ReturnType<typeof store.getState>;

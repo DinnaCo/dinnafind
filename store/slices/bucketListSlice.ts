@@ -146,34 +146,8 @@ export const addToBucketList = createAsyncThunk(
       venueId: venueId,
       userId,
       venue: {
-        id: venueId,
-        heroImageUrl: venue.heroImageUrl,
-        name: venue.name,
-        category:
-          venue.categories && venue.categories.length > 0 ? venue.categories[0].name : 'Restaurant',
-        address: venue.location
-          ? venue.location.formatted_address ??
-            venue.location.formattedAddress ??
-            [venue.location.address, venue.location.locality, venue.location.region]
-              .filter(Boolean)
-              .join(', ')
-          : venue.address ?? '',
-        coordinates: venue.geocodes?.main
-          ? {
-              latitude: venue.geocodes.main.latitude,
-              longitude: venue.geocodes.main.longitude,
-            }
-          : venue.location?.lat && venue.location?.lng
-          ? {
-              latitude: venue.location.lat,
-              longitude: venue.location.lng,
-            }
-          : venue.coordinates ?? undefined,
-        photo:
-          venue.photos && venue.photos.length > 0
-            ? `${venue.photos[0].prefix}original${venue.photos[0].suffix}`
-            : venue.photo ?? undefined,
-        rating: venue.rating,
+        ...venue, // <-- preserves iconUrl and all other fields
+        id: venueId, // (optional: to ensure id is always present/normalized)
       },
       addedAt: Date.now(),
       notes: '',

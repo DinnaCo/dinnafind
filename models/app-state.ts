@@ -14,7 +14,6 @@ export interface AuthState {
   user: UserProfile | null;
   loading: boolean;
   error: string | null;
-  getDisplayName: () => string;
 }
 
 /**
@@ -37,7 +36,6 @@ export interface UserProfile {
   createdAt: number;
   lastLogin: number;
   preferences?: UserPreferences;
-  getDisplayName: () => string;
 }
 
 /**

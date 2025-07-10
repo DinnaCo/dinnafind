@@ -151,31 +151,13 @@ export const SearchScreen: React.FC = () => {
       <TouchableOpacity
         style={styles.listItem}
         onPress={() => {
-          console.log('Navigating to detail with item:', item);
-
-          // Store the venue data in a global variable to avoid param size limits
-
-          // Also encode essential venue data as URL parameter
-          const essentialData = {
-            id: item.id,
-            name: item.name,
-            iconUrl: iconUrl,
-            categories: item.categories?.slice(0, 1) || [], // Only first category to keep size down
-            location: {
-              formattedAddress: item.location?.formattedAddress,
-              lat: item.location?.lat,
-              lng: item.location?.lng,
-            },
-          };
-
-          const encodedData = encodeURIComponent(JSON.stringify(essentialData));
-
-          // Navigate with both ID and encoded data
+          const iconPrefix = item.categories && item.categories[0]?.icon?.prefix;
+          const iconSuffix = item.categories && item.categories[0]?.icon?.suffix;
           router.push({
             pathname: '/detail',
             params: {
               venueId: item.id,
-              data: encodedData,
+              ...(iconPrefix && iconSuffix ? { iconPrefix, iconSuffix } : {}),
             },
           });
         }}

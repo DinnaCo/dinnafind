@@ -25,43 +25,53 @@ import { useAppSelector } from '@/store';
 import { addToBucketList, fetchBucketList } from '@/store/slices/bucketListSlice';
 import { AnyAction } from 'redux';
 
+import { getVenueDetails, StandardizedVenueDetails } from '@/api/venueDetailsService';
+
+import type { BucketListItem } from '@/models/bucket-list';
+
 // Get screen dimensions
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Default icon for when venue doesn't have photos - using the highest resolution
 const DEFAULT_ICON = 'https://ss3.4sqi.net/img/categories_v2/food/default_512.png';
 
+// Update VenueDetails interface to make rating optional
 interface VenueDetails {
   fsq_id: string;
   name: string;
-  geocodes: {
-    main: {
-      latitude: number;
-      longitude: number;
+  geocodes?: {
+    main?: {
+      latitude?: number;
+      longitude?: number;
     };
   };
   location: {
-    formatted_address: string;
-    address: string;
-    locality: string;
-    region: string;
-    postcode: string;
-    country: string;
+    formatted_address?: string;
+    address?: string;
+    locality?: string;
+    region?: string;
+    postcode?: string;
+    country?: string;
   };
-  photos: {
+  photos?: {
     id: string;
-    created_at: string;
-    prefix: string;
-    suffix: string;
-    width: number;
-    height: number;
-    classifications: string[];
+    created_at?: string;
+    prefix?: string;
+    suffix?: string;
+    width?: number;
+    height?: number;
+    classifications?: string[];
   }[];
-  rating: number;
+  rating?: number;
+  iconUrl?: string;
+  categories?: any[];
 }
 
 export const DetailScreen: React.FC = () => {
   const params = useLocalSearchParams();
+  const iconPrefix = typeof params.iconPrefix === 'string' ? params.iconPrefix : undefined;
+  const iconSuffix = typeof params.iconSuffix === 'string' ? params.iconSuffix : undefined;
+
   const dispatch = useDispatch();
 
   // State for venue details
@@ -69,12 +79,43 @@ export const DetailScreen: React.FC = () => {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
 
-  // State for basic venue data when only ID is provided
+  // Add these state variables at the top if not already present
   const [basicVenueData, setBasicVenueData] = useState<any>(null);
   const [isLoadingBasicData, setIsLoadingBasicData] = useState(false);
-  const { data, itemData } = params;
-  // Debug logging
-  console.log('DetailScreen params:', JSON.stringify({ venueId, data, itemData }, null, 4));
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  // Get saved venues to check if this one is already saved (normalize IDs)
+  const savedVenues = useAppSelector(state => state.bucketList.items) as BucketListItem[];
+  let savedVenue: BucketListItem | undefined = undefined;
+  const venueId = venueDetails?.fsq_id || basicVenueData?.id;
+  if (venueId) {
+    savedVenue = savedVenues.find((item: import('@/models/bucket-list').BucketListItem) => {
+      const itemId = typeof item.id === 'string' ? item.id.split('?')[0] : undefined;
+      const venueItemId =
+        item.venue && typeof item.venue.id === 'string' ? item.venue.id.split('?')[0] : undefined;
+      return itemId === venueId || venueItemId === venueId;
+    });
+  }
+  const isVenueSaved = !!savedVenue;
+  const isVenueVisited = !!(savedVenue && savedVenue.visitedAt);
+
+  // Determine iconUrl: prefer Redux state (savedVenue), then params, then venueDetails, then fallback
+  let iconUrl = DEFAULT_ICON;
+  if (savedVenue?.venue?.iconUrl) {
+    iconUrl = savedVenue.venue.iconUrl;
+  } else if (iconPrefix && iconSuffix) {
+    iconUrl = `${iconPrefix}88${iconSuffix}`;
+  } else if (venueDetails?.iconUrl) {
+    iconUrl = venueDetails.iconUrl;
+  } else if (
+    venueDetails?.categories &&
+    venueDetails.categories.length > 0 &&
+    venueDetails.categories[0].icon &&
+    venueDetails.categories[0].icon.prefix &&
+    venueDetails.categories[0].icon.suffix
+  ) {
+    iconUrl = `${venueDetails.categories[0].icon.prefix}88${venueDetails.categories[0].icon.suffix}`;
+  }
 
   // Parse the venue data from various sources
   let venue = null;
@@ -142,7 +183,7 @@ export const DetailScreen: React.FC = () => {
       // Regular flow for when we have venue data
       if (!venue) return;
 
-      const venueId = venue.fsq_id || venue.id;
+      // Use the top-level venueId
       if (!venueId) {
         console.log('No venue ID available for fetching details');
         return;
@@ -158,11 +199,14 @@ export const DetailScreen: React.FC = () => {
 
       try {
         console.log('Fetching venue details for ID:', venueId);
-        const details = await foursquareV3Service.getPlacesDetails(venueId);
+        const details = await getVenueDetails(venueId);
 
         if (details) {
-          console.log('Venue details fetched successfully');
-          setVenueDetails(details);
+          const venueDetailsObj = {
+            ...details,
+            iconUrl,
+          };
+          setVenueDetails(venueDetailsObj);
         } else {
           setDetailsError('Failed to fetch venue details');
         }
@@ -175,36 +219,12 @@ export const DetailScreen: React.FC = () => {
     };
 
     fetchVenueData();
-  }, [venue, params.venueId, basicVenueData, venueDetails, isLoadingBasicData]);
+  }, [iconUrl, venueId]);
 
   // Fetch bucket list to make sure it's up to date
   useEffect(() => {
     dispatch(fetchBucketList() as unknown as AnyAction);
   }, [dispatch]);
-
-  // Get saved venues to check if this one is already saved
-  const savedVenues = useAppSelector(state => state.bucketList.items);
-  const venueId = venue?.id || venue?.fsq_id;
-  const savedVenue =
-    venue && venueId
-      ? savedVenues.find(item => {
-          // Check both the item ID and the venue ID within the item
-          return item.id === venueId || item.venue?.id === venueId;
-        })
-      : null;
-  const isVenueSaved = !!savedVenue;
-  const isVenueVisited = !!savedVenue?.visitedAt;
-
-  console.log(
-    'Checking if venue is saved:',
-    JSON.stringify({
-      venueId,
-      savedVenueIds: savedVenues.map(item => item.id),
-      isVenueSaved,
-    }),
-    null,
-    4
-  );
 
   // Show loading state when fetching basic data
   if (isLoadingBasicData || (!venue && params.venueId)) {
@@ -251,13 +271,12 @@ export const DetailScreen: React.FC = () => {
       venue.address) ??
     'Address not available';
 
-  // Get photos from venue details or fallback to category icon
   const getHeroImageUrl = () => {
     // If we have venue details with photos, use the first photo
     if (venueDetails?.photos && venueDetails.photos.length > 0) {
       const photo = venueDetails.photos[0];
       // Use a large size for the hero image (original size or 800px)
-      const size = photo.width > 800 ? 'original' : '800';
+      const size = photo.width && photo.width > 800 ? 'original' : '800';
       return `${photo.prefix}${size}${photo.suffix}`;
     }
 
@@ -283,9 +302,8 @@ export const DetailScreen: React.FC = () => {
     console.log('Save button pressed, venue:', venue);
 
     if (!isVenueSaved) {
-      // Make sure the venue has an fsq_id for compatibility
-      const venueToSave = venue.fsq_id ? venue : { ...venue, fsq_id: venue.id };
-      console.log('Dispatching addToBucketList with:', venueToSave);
+      const venueToSave = { ...venueDetails, iconUrl };
+      console.log('🗺️ venueToSave🗺️🗺️', JSON.stringify(venueToSave, null, 4));
 
       dispatch(addToBucketList(venueToSave) as any);
       Alert.alert('Saved', `${venueName} has been added to your bucket list!`);
@@ -360,7 +378,18 @@ export const DetailScreen: React.FC = () => {
 
         {/* Hero image section */}
         <View style={styles.heroContainer}>
-          <Image resizeMode="cover" source={{ uri: heroImageUrl }} style={styles.heroImage} />
+          {/* Placeholder image (shown until real image loads) */}
+          {!imageLoaded && (
+            <Image resizeMode="cover" source={{ uri: iconUrl }} style={styles.heroImage} />
+          )}
+          {/* Real image (shown after load) */}
+          <Image
+            resizeMode="cover"
+            source={{ uri: heroImageUrl }}
+            style={[styles.heroImage]}
+            onLoad={() => setImageLoaded(true)}
+          />
+
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryText}>{venueCategory}</Text>
           </View>

@@ -17,7 +17,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useDispatch } from 'react-redux';
+import { useAppDispatch } from '@/store';
 
 import type { BucketListItem } from '@/models/bucket-list';
 import { useAppSelector } from '@/store';
@@ -192,7 +192,7 @@ const EditModal: React.FC<EditModalProps> = ({ item, visible, onClose, onSave })
 };
 
 export const BucketListScreen: React.FC = () => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const bucketListItems = useAppSelector(state => state.bucketList.items);
   const loading = useAppSelector(state => state.bucketList.loading);
   const error = useAppSelector(state => state.bucketList.error);
@@ -258,22 +258,14 @@ export const BucketListScreen: React.FC = () => {
   };
 
   const handleItemPress = (item: BucketListItem) => {
-    // Encode essential venue data as URL parameter
-    const essentialData = {
-      id: item.venue.id,
-      name: item.venue.name,
-      categories: item.venue.categories || [],
-      location: item.venue.location || {},
-    };
-
-    const encodedData = encodeURIComponent(JSON.stringify(essentialData));
-
-    // Navigate with venue ID and encoded data
+    const categories = item.venue.categories || [];
+    const iconPrefix = categories[0]?.icon?.prefix;
+    const iconSuffix = categories[0]?.icon?.suffix;
     router.push({
       pathname: '/detail',
       params: {
         venueId: item.venue.id,
-        data: encodedData,
+        ...(iconPrefix && iconSuffix ? { iconPrefix, iconSuffix } : {}),
       },
     });
   };
@@ -363,10 +355,16 @@ export const BucketListScreen: React.FC = () => {
               {item.venue.name}
             </Text>
             <Text numberOfLines={1} style={styles.venueCategory}>
-              {item.venue.category}
+              {item.venue.categories && item.venue.categories.length > 0
+                ? item.venue.categories[0].name
+                : item.venue.category || 'Restaurant'}
             </Text>
             <Text numberOfLines={2} style={styles.venueAddress}>
-              {item.venue.address}
+              {item.venue.location?.formatted_address ||
+                item.venue.location?.formattedAddress ||
+                item.venue.location?.address ||
+                item.venue.address ||
+                'Address not available'}
             </Text>
 
             {/* Rating and visited status */}

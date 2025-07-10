@@ -149,6 +149,7 @@ export const addToBucketList = createAsyncThunk(
       venueId: venueId,
       userId,
       venue: {
+        iconUrl: venue.iconUrl,
         id: venueId,
         name: venue.name,
         category:
