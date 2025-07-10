@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Icon } from '@rneui/themed';
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { useRouter } from 'expo-router';
@@ -20,7 +20,7 @@ export function ProfileScreen() {
   const clearBucketList = async () => {
     try {
       // Clear the bucket list for the current user
-      const userId = currentUser?.id || 'mock-user-1';
+      const userId = currentUser?.id || 'user-1';
       await AsyncStorage.removeItem(`bucketList_${userId}`);
       console.log('AsyncStorage storage', JSON.stringify(await AsyncStorage.getAllKeys));
       // Refresh the bucket list
@@ -64,8 +64,9 @@ export function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Icon name="person-circle" type="ionicon" size={100} color={theme.colors.grey3} />
-          <Text style={styles.email}>{user?.email || 'No email'}</Text>
+          <Image source={{ uri: currentUser?.photoUrl }} />
+          <Text style={styles.email}>{currentUser?.displayName || 'No email'}</Text>
+          <Text style={styles.email}>{currentUser?.email || 'No email'}</Text>
         </View>
 
         {/* <View style={styles.section}>
@@ -151,10 +152,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     marginBottom: 20,
   },
+  displayName: {
+    fontSize: 20,
+    color: theme.colors.grey1,
+    marginTop: 12,
+  },
   email: {
     fontSize: 16,
     color: theme.colors.grey1,
-    marginTop: 12,
+    marginTop: 4,
   },
   section: {
     backgroundColor: 'white',

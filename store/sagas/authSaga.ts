@@ -10,6 +10,7 @@ import {
   logoutSuccess,
   logoutFailure,
   resetToMockUser,
+  getDisplayName,
 } from '@/store/slices/authSlice';
 
 // Default mock user for development
@@ -19,6 +20,7 @@ const MOCK_USER: UserProfile = {
   displayName: 'Test User',
   createdAt: 0,
   lastLogin: 0,
+  getDisplayName: () => MOCK_USER.displayName ?? MOCK_USER.email,
 };
 
 // Example login service (replace with your actual auth service, e.g., Firebase)

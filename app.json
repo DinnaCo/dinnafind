@@ -12,14 +12,22 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dinnafind.app",
       "infoPlist": {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "DinnaFind needs location access to show you nearby restaurants and send location-based alerts when you're near saved restaurants.",
         "NSLocationWhenInUseUsageDescription": "DinnaFind needs location access to show you nearby restaurants and send location-based alerts when you're near saved restaurants.",
-        "UIBackgroundModes": ["location", "background-processing"]
+        "UIBackgroundModes": [
+          "location",
+          "background-processing",
+          "location",
+          "background-processing"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -31,7 +39,12 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
+        "ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
@@ -56,7 +69,9 @@
         {
           "icon": "./assets/images/notification-icon.png",
           "color": "#ffffff",
-          "sounds": ["./assets/sounds/notification.wav"]
+          "sounds": [
+            "./assets/sounds/notification.wav"
+          ]
         }
       ]
     ],

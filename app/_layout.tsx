@@ -7,7 +7,7 @@ import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 
 import { AuthProvider } from '@/contexts/AuthContext';
-import { persistor, store } from '@/hooks/redux';
+import { persistedReducer, store } from '@/hooks/redux';
 import { useDeferredDeepLink, parseDeepLink } from '@/hooks/useDeferredDeepLink';
 import { useSimpleDeferredLink } from '@/hooks/useSimpleDeferredLink';
 
@@ -21,7 +21,7 @@ export default function RootLayout() {
             <Text style={{ marginTop: 10 }}>Loading...</Text>
           </View>
         }
-        persistor={persistor}
+        persistor={persistedReducer}
       >
         <AuthProvider>
           <SafeAreaProvider>

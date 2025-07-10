@@ -9,6 +9,7 @@ const MOCK_USER: UserProfile = {
   displayName: 'Test User',
   createdAt: 0,
   lastLogin: 0,
+  getDisplayName: () => MOCK_USER.displayName ?? MOCK_USER.email,
 };
 
 // Define the initial state for the auth slice
@@ -17,6 +18,9 @@ const initialState: AuthState = {
   user: null, // No user initially
   loading: false,
   error: null,
+  getDisplayName: () => {
+    return 'Test User';
+  },
 };
 
 // Create the auth slice with reducers for login, logout, and error handling
@@ -72,6 +76,14 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
     },
+    getDisplayName(state, action: PayloadAction<UserProfile>) {
+      state.isAuthenticated = true;
+      state.user = action.payload;
+      state.loading = false;
+      state.error = null;
+      state.getDisplayName = () =>
+        action.payload.displayName ?? action.payload.email ?? 'Test User';
+    },
   },
 });
 
@@ -85,6 +97,7 @@ export const {
   logoutFailure,
   clearError,
   resetToMockUser,
+  getDisplayName,
 } = authSlice.actions;
 
 // Export the reducer as the default export
