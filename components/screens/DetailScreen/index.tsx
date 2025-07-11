@@ -84,6 +84,7 @@ export const DetailScreen: React.FC = () => {
   const [basicVenueData, setBasicVenueData] = useState<any>(null);
   const [isLoadingBasicData, setIsLoadingBasicData] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [autoSaveTriggered, setAutoSaveTriggered] = useState(false);
 
   // Get saved venues to check if this one is already saved (normalize IDs)
   const savedVenues = useAppSelector(state => state.bucketList.items) as BucketListItem[];
@@ -221,6 +222,21 @@ export const DetailScreen: React.FC = () => {
 
     fetchVenueData();
   }, [iconUrl, venueId]);
+
+  // Auto-save logic: if autoSave param is true and not already saved, save after details load
+  useEffect(() => {
+    if (params.autoSave === 'true' && !isVenueSaved && venueDetails && !autoSaveTriggered) {
+      const venueToSave = { ...venueDetails, iconUrl };
+      dispatch(addToBucketList(venueToSave) as any);
+      setAutoSaveTriggered(true);
+      // Optionally, show a confirmation
+      Alert.alert('Saved', `${venueDetails.name} has been added to your bucket list!`);
+      // Refresh the bucket list after saving
+      setTimeout(() => {
+        dispatch(fetchBucketList() as unknown as AnyAction);
+      }, 500);
+    }
+  }, [params.autoSave, isVenueSaved, venueDetails, autoSaveTriggered, iconUrl, dispatch]);
 
   // Fetch bucket list to make sure it's up to date
   useEffect(() => {
