@@ -30,6 +30,21 @@ export interface BucketListVenue {
     region?: string;
     formatted_address?: string;
   };
+  // Foursquare API geocodes
+  geocodes?: {
+    main?: {
+      latitude?: number;
+      longitude?: number;
+    };
+    roof?: {
+      latitude?: number;
+      longitude?: number;
+    };
+    drop_off?: {
+      latitude?: number;
+      longitude?: number;
+    };
+  };
   // Legacy/compat fields
   category?: string;
   iconUrl?: string;

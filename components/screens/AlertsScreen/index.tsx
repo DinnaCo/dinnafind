@@ -47,15 +47,16 @@ export function AlertsScreen() {
       for (const restaurant of bucketListItems as BucketListItem[]) {
         if (
           restaurant.venue &&
-          restaurant.venue.coordinates &&
-          typeof restaurant.venue.coordinates.latitude === 'number' &&
-          typeof restaurant.venue.coordinates.longitude === 'number'
+          restaurant.venue.geocodes &&
+          restaurant.venue.geocodes.main &&
+          typeof restaurant.venue.geocodes.main.latitude === 'number' &&
+          typeof restaurant.venue.geocodes.main.longitude === 'number'
         ) {
           await GeofencingService.addGeofence({
             id: restaurant.id,
             name: restaurant.venue.name,
-            latitude: restaurant.venue.coordinates.latitude,
-            longitude: restaurant.venue.coordinates.longitude,
+            latitude: restaurant.venue.geocodes.main.latitude,
+            longitude: restaurant.venue.geocodes.main.longitude,
             radius: distanceMiles * 1609.34,
           });
         }
@@ -71,8 +72,8 @@ export function AlertsScreen() {
 
   const restaurantsWithLocation = bucketListItems.filter((item: BucketListItem) => {
     return (
-      item.venue?.coordinates?.latitude !== undefined &&
-      item.venue?.coordinates?.longitude !== undefined
+      item.venue?.geocodes?.main?.latitude !== undefined &&
+      item.venue?.geocodes?.main?.longitude !== undefined
     );
   });
   console.log('🔍 Restaurants with location:', restaurantsWithLocation);
@@ -120,7 +121,31 @@ export function AlertsScreen() {
           <Text style={styles.sliderLabel}>Alert Distance: {distanceMiles?.toFixed(2)} miles</Text>
           <Slider
             value={distanceMiles}
-            onValueChange={value => dispatch(setDistanceMiles(value))}
+            onValueChange={async value => {
+              dispatch(setDistanceMiles(value));
+              // Remove all geofences and re-add with new radius
+              for (const restaurant of bucketListItems as BucketListItem[]) {
+                await GeofencingService.removeGeofence(restaurant.id);
+              }
+              for (const restaurant of bucketListItems as BucketListItem[]) {
+                if (
+                  restaurant.notificationsEnabled &&
+                  restaurant.venue &&
+                  restaurant.venue.geocodes &&
+                  restaurant.venue.geocodes.main &&
+                  typeof restaurant.venue.geocodes.main.latitude === 'number' &&
+                  typeof restaurant.venue.geocodes.main.longitude === 'number'
+                ) {
+                  await GeofencingService.addGeofence({
+                    id: restaurant.id,
+                    name: restaurant.venue.name,
+                    latitude: restaurant.venue.geocodes.main.latitude,
+                    longitude: restaurant.venue.geocodes.main.longitude,
+                    radius: value * 1609.34,
+                  });
+                }
+              }
+            }}
             minimumValue={0.1}
             maximumValue={10}
             step={0.05}
@@ -181,8 +206,8 @@ export function AlertsScreen() {
                           GeofencingService.addGeofence({
                             id: restaurant.id as string,
                             name,
-                            latitude: restaurant.venue?.coordinates?.latitude ?? 0,
-                            longitude: restaurant.venue?.coordinates?.longitude ?? 0,
+                            latitude: restaurant.venue?.geocodes?.main?.latitude ?? 0,
+                            longitude: restaurant.venue?.geocodes?.main?.longitude ?? 0,
                             radius: distanceMiles * 1609.34,
                           });
                         } else {
