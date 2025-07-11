@@ -10,9 +10,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Image,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import logo from '../../../assets/images/large.png';
 import { useAuth } from '@/contexts/AuthContext';
 import { signInWithGoogle } from '@/services/GoogleAuthNoSession';
 import { theme } from '@/theme';
@@ -77,7 +79,7 @@ export function AuthScreen() {
       >
         <View style={styles.content}>
           <View style={styles.header}>
-            <Icon name="restaurant" type="material" size={60} color={theme.colors.primary} />
+            <Image source={logo} style={styles.logo} resizeMode="contain" />
             <Text style={styles.title}>DinnaFind</Text>
             <Text style={styles.subtitle}>
               {mode === 'signIn' ? 'Welcome back!' : 'Create your account'}
@@ -165,6 +167,10 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 40,
+  },
+  logo: {
+    width: 300,
+    height: 300,
   },
   title: {
     fontSize: 36,
