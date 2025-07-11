@@ -55,23 +55,11 @@ function RootLayoutContent() {
         console.log('[DeepLink] Navigating to restaurant:', parsed.restaurantId);
         console.log('[DeepLink] Query params:', parsed.queryParams);
 
-        // For deep links, create minimal venue data
-        const minimalVenueData = {
-          id: parsed.restaurantId,
-          name: `Restaurant ${parsed.restaurantId}`,
-          categories: [{ name: 'Restaurant' }],
-          location: {
-            formattedAddress: 'Loading address...',
-          },
-        };
-
-        const encodedData = encodeURIComponent(JSON.stringify(minimalVenueData));
-
         // Check if we should auto-save this venue
-        const shouldAutoSave = parsed.queryParams?.save === 'true';
+        const shouldAutoSave = parsed.queryParams?.autoSave === 'true';
 
-        // Navigate with both ID and encoded minimal data, plus auto-save flag
-        const detailUrl = `/detail?venueId=${parsed.restaurantId}&data=${encodedData}${
+        // Navigate with only venueId and autoSave (no minimal data)
+        const detailUrl = `/detail?venueId=${parsed.restaurantId}${
           shouldAutoSave ? '&autoSave=true' : ''
         }` as const;
 

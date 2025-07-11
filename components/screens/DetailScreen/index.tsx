@@ -14,6 +14,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Share,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -240,13 +241,21 @@ export const DetailScreen: React.FC = () => {
 
   // Fallback for when no venue data is available
   if (!venue) {
+    const handleGoBack = () => {
+      // Try to go back, otherwise go home
+      try {
+        router.back();
+      } catch {
+        router.replace('/');
+      }
+    };
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Ionicons color="#FF4500" name="alert-circle-outline" size={64} />
           <Text style={styles.errorText}>Venue data not available</Text>
           <Text style={styles.debugText}>Debug: params = {JSON.stringify(params)}</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -352,13 +361,16 @@ export const DetailScreen: React.FC = () => {
   };
 
   // Handle sharing the venue
-  const handleShareVenue = () => {
-    const message = `Check out ${venueName} - ${venueCategory}\n${venueAddress}`;
-
-    if (Platform.OS === 'ios') {
-      Alert.alert('Share', 'Sharing functionality would be implemented here', [{ text: 'OK' }]);
-    } else {
-      Alert.alert('Share', message, [{ text: 'OK' }]);
+  const handleShareVenue = async () => {
+    const deepLink = `dinnafind://restaurant/${venueDetails?.fsq_id}?autoSave=true`;
+    const message = `Check out ${venueName} - ${venueCategory}\n${venueAddress}\n\nSave to your bucket list: ${deepLink}`;
+    try {
+      await Share.share({
+        url: deepLink,
+        title: venueName,
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open share dialog');
     }
   };
 
