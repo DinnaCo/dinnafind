@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import logo from '../../../assets/images/large.png';
+import logo from '../../../assets/images/splash-icon.png';
 import { useAuth } from '@/contexts/AuthContext';
 import { signInWithGoogle } from '@/services/GoogleAuthNoSession';
 import { theme } from '@/theme';
@@ -169,8 +169,8 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    width: 300,
-    height: 300,
+    width: 200,
+    height: 200,
   },
   title: {
     fontSize: 36,

@@ -13,7 +13,9 @@
     "start:clear": "expo start --clear",
     "clear:asyncstorage": "node ./scripts/clearAsyncStorage.js",
     "clear:redux": "node ./scripts/clearReduxPersist.js",
-    "reset:all": "npm run clear:asyncstorage && npm run clear:redux && npm run start:clear"
+    "reset:all": "npm run clear:asyncstorage && npm run clear:redux && npm run start:clear",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
