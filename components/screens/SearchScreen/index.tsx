@@ -27,11 +27,7 @@ const DEFAULT_COORDINATES: Coordinates = {
   longitude: -97.7431,
 };
 
-// Default icon for when a venue doesn't have one
-const DEFAULT_ICON = 'https://ss3.4sqi.net/img/categories_v2/food/default_88.png';
-
-// Fix image import
-const defaultRestaurantImg = require('@/assets/images/default_88.png');
+const DEFAULT_ICON = require('@/assets/images/default_88.png');
 
 export const SearchScreen: React.FC = () => {
   const location = useGeolocation();
@@ -162,11 +158,7 @@ export const SearchScreen: React.FC = () => {
           });
         }}
       >
-        <Image
-          defaultSource={defaultRestaurantImg}
-          source={{ uri: iconUrl }}
-          style={styles.iconImage}
-        />
+        <Image defaultSource={DEFAULT_ICON} source={{ uri: iconUrl }} style={styles.iconImage} />
         <View style={styles.itemContent}>
           <Text style={styles.itemTitle}>{item.name}</Text>
           <Text style={styles.itemSubtitle}>{categoryName}</Text>

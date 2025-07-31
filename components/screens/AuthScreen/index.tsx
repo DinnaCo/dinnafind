@@ -13,11 +13,12 @@ import {
   Image,
   View,
 } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
-import logo from '../../../assets/images/splash-icon.png';
 import { useAuth } from '@/contexts/AuthContext';
 import { signInWithGoogle } from '@/services/GoogleAuthNoSession';
 import { theme } from '@/theme';
+
 export function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,6 +26,8 @@ export function AuthScreen() {
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
   const { signIn, signUp, user } = useAuth();
   const router = useRouter();
+
+  const logo = require('@/assets/images/splash-icon.png');
 
   // Add debug log
 
