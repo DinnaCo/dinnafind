@@ -14,6 +14,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Share,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -83,6 +84,7 @@ export const DetailScreen: React.FC = () => {
   const [basicVenueData, setBasicVenueData] = useState<any>(null);
   const [isLoadingBasicData, setIsLoadingBasicData] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [autoSaveTriggered, setAutoSaveTriggered] = useState(false);
 
   // Get saved venues to check if this one is already saved (normalize IDs)
   const savedVenues = useAppSelector(state => state.bucketList.items) as BucketListItem[];
@@ -221,6 +223,21 @@ export const DetailScreen: React.FC = () => {
     fetchVenueData();
   }, [iconUrl, venueId]);
 
+  // Auto-save logic: if autoSave param is true and not already saved, save after details load
+  useEffect(() => {
+    if (params.autoSave === 'true' && !isVenueSaved && venueDetails && !autoSaveTriggered) {
+      const venueToSave = { ...venueDetails, iconUrl };
+      dispatch(addToBucketList(venueToSave) as any);
+      setAutoSaveTriggered(true);
+      // Optionally, show a confirmation
+      Alert.alert('Saved', `${venueDetails.name} has been added to your bucket list!`);
+      // Refresh the bucket list after saving
+      setTimeout(() => {
+        dispatch(fetchBucketList() as unknown as AnyAction);
+      }, 500);
+    }
+  }, [params.autoSave, isVenueSaved, venueDetails, autoSaveTriggered, iconUrl, dispatch]);
+
   // Fetch bucket list to make sure it's up to date
   useEffect(() => {
     dispatch(fetchBucketList() as unknown as AnyAction);
@@ -240,13 +257,21 @@ export const DetailScreen: React.FC = () => {
 
   // Fallback for when no venue data is available
   if (!venue) {
+    const handleGoBack = () => {
+      // Try to go back, otherwise go home
+      try {
+        router.back();
+      } catch {
+        router.replace('/');
+      }
+    };
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
           <Ionicons color="#FF4500" name="alert-circle-outline" size={64} />
           <Text style={styles.errorText}>Venue data not available</Text>
           <Text style={styles.debugText}>Debug: params = {JSON.stringify(params)}</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -352,13 +377,16 @@ export const DetailScreen: React.FC = () => {
   };
 
   // Handle sharing the venue
-  const handleShareVenue = () => {
-    const message = `Check out ${venueName} - ${venueCategory}\n${venueAddress}`;
-
-    if (Platform.OS === 'ios') {
-      Alert.alert('Share', 'Sharing functionality would be implemented here', [{ text: 'OK' }]);
-    } else {
-      Alert.alert('Share', message, [{ text: 'OK' }]);
+  const handleShareVenue = async () => {
+    const deepLink = `dinnafind://restaurant/${venueDetails?.fsq_id}?autoSave=true`;
+    const message = `Check out ${venueName} - ${venueCategory}\n${venueAddress}\n\nSave to your bucket list: ${deepLink}`;
+    try {
+      await Share.share({
+        url: deepLink,
+        title: venueName,
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open share dialog');
     }
   };
 

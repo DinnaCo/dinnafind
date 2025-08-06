@@ -4,20 +4,26 @@
     "slug": "dinnafind",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon-dinnafind-iOS-Default-1024x1024@2x.png",
     "scheme": "dinnafind",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/icon-dinnafind-iOS-Default-1024x1024@2x.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dinnafind.app",
+      "icon": {
+        "image": "./assets/images/icon-dinnafind-iOS-Default-1024x1024@2x.png",
+        "darkImage": "./assets/images/icon-dinnafind-iOS-Dark-1024x1024@2x.png",
+        "clearImage": "./assets/images/icon-dinnafind-iOS-ClearLight-1024x1024@2x.png",
+        "clearDarkImage": "./assets/images/icon-dinnafind-iOS-ClearDark-1024x1024@2x.png",
+        "tintedImage": "./assets/images/icon-dinnafind-iOS-TintedLight-1024x1024@2x.png",
+        "tintedDarkImage": "./assets/images/icon-dinnafind-iOS-TintedDark-1024x1024@2x.png"
+      },
       "infoPlist": {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "DinnaFind needs location access to show you nearby restaurants and send location-based alerts when you're near saved restaurants.",
         "NSLocationWhenInUseUsageDescription": "DinnaFind needs location access to show you nearby restaurants and send location-based alerts when you're near saved restaurants.",
@@ -32,7 +38,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/icon-dinnafind-iOS-Default-1024x1024@2x.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.dinnafind.app",
@@ -67,11 +73,9 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/notification-icon.png",
+          "icon": "./assets/images/icon-dinnafind-iOS-Default-1024x1024@2x.png",
           "color": "#ffffff",
-          "sounds": [
-            "./assets/sounds/notification.wav"
-          ]
+          "sounds": ["./assets/sounds/notification.wav"]
         }
       ]
     ],

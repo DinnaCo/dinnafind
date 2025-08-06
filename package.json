@@ -4,10 +4,18 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "build": "expo build:ios",
+    "build:android": "expo build:android",
+    "build:all": "expo build:ios && expo build:android",
+    "install:ios": "expo install --platform ios",
+    "start:ios": "expo start --ios",
+    "start:android": "expo start --android",
     "start:clear": "expo start --clear",
     "clear:asyncstorage": "node ./scripts/clearAsyncStorage.js",
     "clear:redux": "node ./scripts/clearReduxPersist.js",
-    "reset:all": "npm run clear:asyncstorage && npm run clear:redux && npm run start:clear"
+    "reset:all": "npm run clear:asyncstorage && npm run clear:redux && npm run start:clear",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
@@ -40,6 +48,7 @@
     "expo-system-ui": "~5.0.10",
     "expo-task-manager": "^13.1.6",
     "expo-web-browser": "~14.2.0",
+    "ios": "^0.0.1",
     "querystring-es3": "^0.2.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
