@@ -31,25 +31,34 @@ export const useGeolocation = (): GeolocationHook => {
   // Request location permissions and get location
   const requestLocation = useCallback(async () => {
     try {
+      console.log('🗺️ useGeolocation: Starting location request');
       setLoading(true);
       setError(null);
 
       // Request permissions
       const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('🗺️ useGeolocation: Permission request result:', status);
 
       // Update permission status in Redux
       dispatch(setLocationPermission(status === 'granted'));
 
       if (status !== 'granted') {
-        setError('Location permission not granted');
+        const errorMsg = 'Location permission not granted';
+        console.log('🗺️ useGeolocation:', errorMsg);
+        setError(errorMsg);
         setLoading(false);
         return;
       }
 
       // Get current position
+      console.log('🗺️ useGeolocation: Getting current position...');
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
+        maximumAge: 60000, // Accept cached location up to 1 minute old
+        timeout: 10000, // 10 second timeout
       });
+
+      console.log('🗺️ useGeolocation: Location received:', location.coords);
 
       // Update location in Redux
       const newCoordinates: Coordinates = {
@@ -61,9 +70,12 @@ export const useGeolocation = (): GeolocationHook => {
 
       // Also dispatch the getUserLocation action to trigger any sagas listening for it
       dispatch(getUserLocation());
+
+      console.log('🗺️ useGeolocation: Location updated in Redux:', newCoordinates);
     } catch (error: unknown) {
-      console.error('Error getting location:', error);
-      setError((error as Error).message || 'Failed to get location');
+      const errorMsg = (error as Error).message || 'Failed to get location';
+      console.error('🗺️ useGeolocation: Error getting location:', error);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -74,9 +86,11 @@ export const useGeolocation = (): GeolocationHook => {
     const checkPermission = async () => {
       try {
         const { status } = await Location.getForegroundPermissionsAsync();
+        console.log('🗺️ useGeolocation: Current permission status:', status);
         dispatch(setLocationPermission(status === 'granted'));
 
         if (status === 'granted' && !coordinates) {
+          console.log('🗺️ useGeolocation: Permission granted, requesting location');
           requestLocation();
         }
       } catch (err) {
