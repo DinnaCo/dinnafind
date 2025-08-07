@@ -92,32 +92,6 @@ export function LocationStatus({ showDetails = false, onRetry }: LocationStatusP
       </View>
     );
   }
-
-  if (coordinates) {
-    return (
-      <View style={styles.container}>
-        <Icon name="location-on" size={16} color={theme.colors.success} />
-        <Text style={styles.text}>Location available</Text>
-        {showDetails && (
-          <Text style={styles.coordinates}>
-            {coordinates.latitude.toFixed(4)}, {coordinates.longitude.toFixed(4)}
-          </Text>
-        )}
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <Icon name="location-searching" size={16} color={theme.colors.grey3} />
-      <Text style={styles.text}>Location not set</Text>
-      {showDetails && (
-        <TouchableOpacity style={styles.button} onPress={handleRetry}>
-          <Text style={styles.buttonText}>Get Location</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({
