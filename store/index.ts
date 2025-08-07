@@ -25,7 +25,7 @@ const rootReducer = {
 };
 
 // Create root reducer (no longer persisted)
-export const persistedReducer = combineReducers(rootReducer);
+export const reducer = combineReducers(rootReducer);
 
 // Setup saga middleware
 const sagaMiddleware = createSagaMiddleware();
@@ -47,7 +47,7 @@ const createDebugger = () => {
 
 // Configure store with Supabase middleware instead of persist
 export const store = configureStore({
-  reducer: persistedReducer,
+  reducer,
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: {

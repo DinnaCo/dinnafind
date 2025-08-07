@@ -70,7 +70,7 @@ export const useGeolocation = (): GeolocationHook => {
 
       // Also dispatch the getUserLocation action to trigger any sagas listening for it
       dispatch(getUserLocation());
-
+      
       console.log('🗺️ useGeolocation: Location updated in Redux:', newCoordinates);
     } catch (error: unknown) {
       const errorMsg = (error as Error).message || 'Failed to get location';
