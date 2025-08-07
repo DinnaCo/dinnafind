@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import {
 } from '@/store/slices/bucketListSlice';
 import { type BucketListItem } from '@/models/bucket-list';
 import { LocationPermissionRequest } from '@/components/common/LocationPermissionRequest';
+import { LocationStatus } from '@/components/common/LocationStatus';
 
 export const ExploreScreen: React.FC = () => {
   const {
@@ -31,11 +32,22 @@ export const ExploreScreen: React.FC = () => {
   } = useGeolocation();
   const bucketListItems = useAppSelector(selectBucketListItems) as BucketListItem[];
   const dispatch = useAppDispatch();
+  const [showLocationError, setShowLocationError] = useState(false);
 
   // Fetch bucket list on mount
   useEffect(() => {
-    dispatch(fetchBucketList());
+    dispatch(fetchBucketList() as any);
   }, [dispatch]);
+
+  // Handle location error display
+  useEffect(() => {
+    if (locationError && !locationLoading) {
+      setShowLocationError(true);
+      // Auto-hide error after 5 seconds
+      const timer = setTimeout(() => setShowLocationError(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [locationError, locationLoading]);
 
   // Debug logging
   useEffect(() => {
@@ -132,64 +144,6 @@ export const ExploreScreen: React.FC = () => {
     return null;
   };
 
-  // Test function to add sample bucket list items
-  const addTestItems = () => {
-    const testItems = [
-      {
-        fsq_id: 'test-venue-1',
-        name: 'Franklin Barbecue',
-        categories: [{ name: 'Barbecue Restaurant' }],
-        location: {
-          formatted_address: '900 E 11th St, Austin, TX 78702',
-          lat: 30.2741,
-          lng: -97.7394,
-        },
-        geocodes: {
-          main: {
-            latitude: 30.2741,
-            longitude: -97.7394,
-          },
-        },
-      },
-      {
-        fsq_id: 'test-venue-2',
-        name: 'Uchi',
-        categories: [{ name: 'Sushi Restaurant' }],
-        location: {
-          formatted_address: '801 S Lamar Blvd, Austin, TX 78704',
-          lat: 30.2597,
-          lng: -97.7497,
-        },
-        geocodes: {
-          main: {
-            latitude: 30.2597,
-            longitude: -97.7497,
-          },
-        },
-      },
-      {
-        fsq_id: 'test-venue-3',
-        name: 'Veracruz All Natural',
-        categories: [{ name: 'Mexican Restaurant' }],
-        location: {
-          formatted_address: '1704 E Cesar Chavez St, Austin, TX 78702',
-          lat: 30.2647,
-          lng: -97.7314,
-        },
-        geocodes: {
-          main: {
-            latitude: 30.2647,
-            longitude: -97.7314,
-          },
-        },
-      },
-    ];
-
-    testItems.forEach(item => {
-      dispatch(addToBucketList(item) as any);
-    });
-  };
-
   // Show location permission request if permission not granted
   if (!permissionGranted && !locationLoading) {
     return <LocationPermissionRequest onRequestLocation={requestLocation} />;
@@ -200,8 +154,8 @@ export const ExploreScreen: React.FC = () => {
       <View style={styles.mapContainer}>
         {locationLoading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#FF4500" />
-            <Text style={styles.loadingText}>Getting your location...</Text>
+            <ActivityIndicator size="small" color="#FF4500" />
+            <Text style={styles.loadingText}>Loading...</Text>
           </View>
         )}
         <MapView
@@ -230,6 +184,22 @@ export const ExploreScreen: React.FC = () => {
           })}
         </MapView>
       </View>
+
+      {/* Error banner */}
+      {showLocationError && locationError && (
+        <View style={styles.errorBanner}>
+          <View style={styles.errorContent}>
+            <Ionicons name="warning" size={16} color="#FF4500" />
+            <Text style={styles.errorBannerText} numberOfLines={2}>
+              {locationError}
+            </Text>
+            <TouchableOpacity onPress={() => setShowLocationError(false)}>
+              <Ionicons name="close" size={16} color="#666666" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       <View style={styles.content}>
         <Ionicons color="#CCCCCC" name="map-outline" size={64} />
         <Text style={styles.title}>Explore Restaurants</Text>
@@ -239,7 +209,8 @@ export const ExploreScreen: React.FC = () => {
             : 'This screen will show your location and saved restaurants once location access is granted.'}
         </Text>
 
-        {locationError && <Text style={styles.errorText}>Location error: {locationError}</Text>}
+        {/* Location status component */}
+        <LocationStatus showDetails={true} onRetry={requestLocation} />
 
         <TouchableOpacity style={styles.button} onPress={() => router.push('/search')}>
           <Text style={styles.buttonText}>Search Restaurants</Text>
@@ -271,15 +242,19 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    justifyContent: 'center',
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    padding: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     zIndex: 2,
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
+    fontSize: 14,
     color: '#333333',
   },
   content: {
@@ -337,6 +312,24 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     marginTop: 10,
+  },
+  errorBanner: {
+    backgroundColor: '#FFF5F5',
+    borderTopWidth: 1,
+    borderTopColor: '#FFE5E5',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  errorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#FF4500',
+    marginLeft: 4,
   },
 });
 

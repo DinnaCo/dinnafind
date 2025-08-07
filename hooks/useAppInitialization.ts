@@ -1,62 +1,105 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store';
 import GeofencingService from '@/services/GeofencingService';
 import LocationPermissionService from '@/services/LocationPermissionService';
 import { checkAndRequestLocationServices } from '@/utils/locationHelpers';
-import { 
+import {
   selectMasterNotificationsEnabled,
-  selectDistanceMiles 
+  selectDistanceMiles,
+  setBucketListItems,
+  setMasterNotificationsEnabled,
+  setDistanceMiles,
 } from '@/store/slices/bucketListSlice';
 import { BucketListItem } from '@/models/bucket-list';
+import { setAppStateFromUserData } from '@/utils/appStateHelpers';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function useAppInitialization() {
   const dispatch = useAppDispatch();
+  const { user, session } = useAuth();
   const bucketListItems = useAppSelector(state => state.bucketList.items) as BucketListItem[];
   const masterEnabled = useAppSelector(selectMasterNotificationsEnabled);
   const distanceMiles = useAppSelector(selectDistanceMiles);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [initializationError, setInitializationError] = useState<string | null>(null);
 
   useEffect(() => {
-    initializeApp();
-  }, []); // Only run once on app start
+    if (user && session) {
+      initializeApp();
+    } else if (!user && !session) {
+      // No user, skip initialization
+      setIsInitializing(false);
+    }
+  }, [user, session]);
+
+  /**
+   * Helper function to set all store states from Supabase user data
+   */
+  const loadUserData = async (userId: string) => {
+    console.log('[AppInit] Loading user data from Supabase...');
+
+    try {
+      const success = await setAppStateFromUserData(userId);
+      if (!success) {
+        setInitializationError('Failed to load user data');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('[AppInit] Error loading user data:', error);
+      setInitializationError('Failed to load user data');
+      return false;
+    }
+  };
 
   const initializeApp = async () => {
     console.log('[AppInit] Starting app initialization...');
-    
+    setIsInitializing(true);
+    setInitializationError(null);
+
     try {
-      // Initialize GeofencingService (loads saved geofences from AsyncStorage)
+      if (!user?.id) {
+        throw new Error('No user ID available');
+      }
+
+      // Step 1: Load all user data from Supabase
+      const dataLoaded = await loadUserData(user.id);
+      if (!dataLoaded) {
+        throw new Error('Failed to load user data');
+      }
+
+      // Step 2: Initialize GeofencingService (loads saved geofences from AsyncStorage)
       await GeofencingService.initialize();
-      
-      // Request permissions and rebuild geofences if master notifications are enabled
+
+      // Step 3: Skip location setup during app initialization to avoid hanging
+      // Location services will be checked when user navigates to Explore screen
       if (masterEnabled) {
-        console.log('[AppInit] Master notifications enabled, checking location services...');
-        
-        // First check if location services are enabled
-        const locationServicesOk = await checkAndRequestLocationServices();
-        
-        if (locationServicesOk) {
-          console.log('[AppInit] Location services OK, rebuilding geofences...');
-          // Rebuild geofences from Redux state to ensure they're in sync
-          await rebuildGeofencesFromState();
-        } else {
-          console.log('[AppInit] Location services or permissions denied, geofencing disabled');
-        }
+        console.log(
+          '[AppInit] Master notifications enabled, but skipping location setup during init'
+        );
+        console.log(
+          '[AppInit] Location services will be checked when user navigates to Explore screen'
+        );
       } else {
         console.log('[AppInit] Master notifications disabled, skipping geofence setup');
       }
+
+      console.log('[AppInit] App initialization complete');
     } catch (error) {
       console.error('[AppInit] Initialization error:', error);
+      setInitializationError(error instanceof Error ? error.message : 'Initialization failed');
+    } finally {
+      setIsInitializing(false);
     }
-    
-    console.log('[AppInit] App initialization complete');
   };
 
   const rebuildGeofencesFromState = async () => {
     console.log('[AppInit] Rebuilding geofences from state...');
     console.log('[AppInit] Bucket list items:', bucketListItems.length);
-    
+
     // Clear existing geofences to avoid duplicates
     await GeofencingService.clearAllGeofences();
-    
+
     // Add geofences for items with notifications enabled
     let addedCount = 0;
     for (const item of bucketListItems) {
@@ -75,10 +118,18 @@ export function useAppInitialization() {
         addedCount++;
         console.log(`[AppInit] Added geofence for: ${item.venue.name}`);
       } else if (item.notificationsEnabled) {
-        console.log(`[AppInit] Skipped geofence for ${item.venue?.name || item.id} - missing location data`);
+        console.log(
+          `[AppInit] Skipped geofence for ${item.venue?.name || item.id} - missing location data`
+        );
       }
     }
-    
+
     console.log(`[AppInit] Geofences rebuilt: ${addedCount} active geofences`);
+  };
+
+  return {
+    isInitializing,
+    initializationError,
+    loadUserData,
   };
 }

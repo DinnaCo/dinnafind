@@ -121,8 +121,6 @@ export const fetchBucketList = createAsyncThunk('bucketList/fetch', async (_, { 
   const userId = getUserId(state);
   console.log('Current user ID:', userId);
 
-  // Since we're using redux-persist, the items are already in state
-  // We just need to enhance them with venue details if needed
   const items = state.bucketList.items;
   console.log('Current items in state:', JSON.stringify(items, null, 4));
 
