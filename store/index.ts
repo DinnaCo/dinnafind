@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { combineReducers, configureStore } from '@reduxjs/toolkit';
 import { useDispatch, useSelector, type TypedUseSelectorHook } from 'react-redux';
-import { persistReducer, persistStore } from 'redux-persist';
 import devToolsEnhancer from 'redux-devtools-expo-dev-plugin';
 
 import { rootSaga } from './rootSaga';
 import { geofencingMiddleware } from './geofencingMiddleware';
+import { supabaseMiddleware } from './supabaseMiddleware';
 
 // Import reducers
 import authReducer from './slices/authSlice';
@@ -15,27 +15,17 @@ import venuesReducer from './slices/venuesSlice';
 import locationReducer from './slices/locationSlice';
 const createSagaMiddleware = require('redux-saga').default;
 
-// Import root saga
-
-// Configure redux-persist
-const persistConfig = {
-  key: 'root',
-  storage: AsyncStorage,
-  whitelist: ['auth', 'bucketList', 'ui'],
-  debug: process.env.EXPO_DEV === 'development',
-};
-
 // Combine all reducers
 const rootReducer = {
   auth: authReducer,
   venues: venuesReducer,
   bucketList: bucketListReducer,
   ui: uiReducer,
-  location: locationReducer, // <-- Added location reducer
+  location: locationReducer,
 };
 
-// Create persisted reducer
-export const persistedReducer = persistReducer(persistConfig, combineReducers(rootReducer));
+// Create root reducer (no longer persisted)
+export const persistedReducer = combineReducers(rootReducer);
 
 // Setup saga middleware
 const sagaMiddleware = createSagaMiddleware();
@@ -55,19 +45,12 @@ const createDebugger = () => {
   return undefined;
 };
 
-// Configure store with enhanced dev tools
+// Configure store with Supabase middleware instead of persist
 export const store = configureStore({
   reducer: persistedReducer,
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: [
-          'persist/PERSIST',
-          'persist/REHYDRATE',
-          'persist/PAUSE',
-          'persist/PURGE',
-          'persist/REGISTER',
-        ],
         ignoredActionsPaths: ['meta.arg', 'payload.timestamp'],
         ignoredPaths: ['items.dates'],
       },
@@ -75,20 +58,13 @@ export const store = configureStore({
       immutableCheck: {
         warnAfter: 128,
       },
-    }).concat(sagaMiddleware, geofencingMiddleware),
+    }).concat(sagaMiddleware, geofencingMiddleware, supabaseMiddleware),
   devTools: false,
   enhancers: getDefaultEnhancers => getDefaultEnhancers().concat(devToolsEnhancer()) as any,
 });
 
 // Run saga middleware
 sagaMiddleware.run(rootSaga);
-
-// Create persistor
-export const persistor = persistStore(store, null, () => {
-  if (process.env.EXPO_DEV === 'development') {
-    console.log('✅ Redux persist rehydration complete');
-  }
-});
 
 // Export types
 export type RootState = ReturnType<typeof store.getState>;
@@ -101,8 +77,6 @@ export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 
 // Development tools and debugging helpers
 if (__DEV__) {
-  // r
-
   // Action dispatchers for debugging
   (globalThis as any).debugActions = {
     fetchBucketList: () => store.dispatch({ type: 'bucketList/fetchBucketList' }),
@@ -119,8 +93,6 @@ if (__DEV__) {
   };
 
   // Log initial state
-  console.log('🏪 Redux Store initialized');
+  console.log('🏪 Redux Store initialized with Supabase middleware');
   console.log('📊 Initial State:', JSON.stringify(store.getState(), null, 4));
-
-  // Subscribe to state changes for debugging
 }

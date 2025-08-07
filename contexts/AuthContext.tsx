@@ -2,11 +2,18 @@ import { Session, User } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { Platform } from 'react-native';
 import { useAppDispatch } from '@/store';
 import { loginSuccess, logoutSuccess } from '@/store/slices/authSlice';
 import { supabase } from '@/utils/supabase';
+import { SupabaseDataService } from '@/services/supabaseDataService';
+import { setTheme, completeOnboarding } from '@/store/slices/uiSlice';
+import {
+  setMasterNotificationsEnabled,
+  setDistanceMiles,
+  setBucketListItems,
+} from '@/store/slices/bucketListSlice';
 
 // This is needed for OAuth redirects
 WebBrowser.maybeCompleteAuthSession();
@@ -32,10 +39,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const dispatch = useAppDispatch();
+  const loadedUsers = useRef<Set<string>>(new Set());
+  const isLoadingData = useRef<Set<string>>(new Set());
+
+  const loadUserData = async (userId: string) => {
+    // Prevent duplicate loading for the same user
+    if (loadedUsers.current.has(userId)) {
+      console.log('🔄 User data already loaded for:', userId);
+      return;
+    }
+
+    // Prevent concurrent loading for the same user
+    if (isLoadingData.current.has(userId)) {
+      console.log('🔄 User data loading in progress for:', userId);
+      return;
+    }
+
+    console.log('🔄 Loading user data from Supabase for user:', userId);
+    isLoadingData.current.add(userId);
+
+    try {
+      // Load user profile
+      const userProfile = await SupabaseDataService.loadUserProfile(userId);
+      if (userProfile) {
+        dispatch(loginSuccess(userProfile));
+      } else {
+        // Create basic profile if none exists
+        const basicProfile = {
+          id: userId,
+          email: user?.email || '',
+          displayName: user?.user_metadata?.full_name || user?.email || '',
+          createdAt: user?.created_at ? new Date(user.created_at).getTime() : 0,
+          lastLogin: Date.now(),
+        };
+        dispatch(loginSuccess(basicProfile));
+      }
+
+      // Load user preferences
+      const preferences = await SupabaseDataService.loadUserPreferences(userId);
+      if (preferences && Object.keys(preferences).length > 0) {
+        if (preferences.theme) {
+          dispatch(setTheme(preferences.theme));
+        }
+        if (preferences.onboardingCompleted !== undefined) {
+          dispatch(completeOnboarding(preferences.onboardingCompleted));
+        }
+        if (preferences.masterNotificationsEnabled !== undefined) {
+          dispatch(setMasterNotificationsEnabled(preferences.masterNotificationsEnabled));
+        }
+        if (preferences.distanceMiles !== undefined) {
+          dispatch(setDistanceMiles(preferences.distanceMiles));
+        }
+      }
+
+      // Load bucket list items
+      const bucketListItems = await SupabaseDataService.loadBucketListItems(userId);
+      if (bucketListItems.length > 0) {
+        dispatch(setBucketListItems(bucketListItems));
+      }
+
+      loadedUsers.current.add(userId);
+      console.log('✅ User data loaded successfully for:', userId);
+    } catch (error) {
+      console.error('❌ Failed to load user data:', error);
+    } finally {
+      isLoadingData.current.delete(userId);
+    }
+  };
 
   useEffect(() => {
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
 
@@ -50,6 +124,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             lastLogin: Date.now(),
           })
         );
+
+        // Load user data from Supabase
+        await loadUserData(session.user.id);
       } else {
         dispatch(logoutSuccess());
       }
@@ -60,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
 
@@ -75,8 +152,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             lastLogin: Date.now(),
           })
         );
+
+        // Load user data from Supabase
+        await loadUserData(session.user.id);
       } else {
         dispatch(logoutSuccess());
+        // Clear loaded users when logging out
+        loadedUsers.current.clear();
+        isLoadingData.current.clear();
       }
 
       setLoading(false);
