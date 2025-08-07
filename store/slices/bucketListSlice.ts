@@ -182,7 +182,7 @@ export const updateBucketListItem = createAsyncThunk(
     const userId = getUserId(state);
 
     // Get current item from state
-    const currentItem = state.bucketList.items.find(item => item.id === id);
+    const currentItem = state.bucketList.items.find((item: BucketListItem) => item.id === id);
 
     if (!currentItem) {
       throw new Error('Item not found');
@@ -213,7 +213,7 @@ export const removeFromBucketList = createAsyncThunk(
     const userId = getUserId(state);
 
     // Get the item to check ownership
-    const item = state.bucketList.items.find(item => item.id === itemId);
+    const item = state.bucketList.items.find((item: BucketListItem) => item.id === itemId);
 
     if (!item) {
       throw new Error('Item not found');
@@ -240,7 +240,7 @@ export const markAsVisited = createAsyncThunk(
     const userId = getUserId(state);
 
     // Get current item from state
-    const currentItem = state.bucketList.items.find(item => item.id === id);
+    const currentItem = state.bucketList.items.find((item: BucketListItem) => item.id === id);
 
     if (!currentItem) {
       throw new Error('Item not found');
@@ -271,11 +271,11 @@ export const markAsVisited = createAsyncThunk(
 const bucketListSlice = createSlice({
   name: 'bucketList',
   initialState: {
-    items: [],
-    filteredItems: [],
-    filters: {},
+    items: [] as BucketListItem[],
+    filteredItems: [] as BucketListItem[],
+    filters: {} as BucketListFilter,
     loading: false,
-    error: null,
+    error: null as string | null,
     masterNotificationsEnabled: true,
     distanceMiles: 1.25, // Default radius for alerts (approx 2000 meters)
   },
@@ -328,6 +328,11 @@ const bucketListSlice = createSlice({
     },
     setDistanceMiles: (state, action: PayloadAction<number>) => {
       state.distanceMiles = action.payload;
+    },
+    // Set bucket list items from Supabase (for data loading)
+    setBucketListItems: (state, action: PayloadAction<BucketListItem[]>) => {
+      state.items = action.payload;
+      state.filteredItems = applyFilters(action.payload, state.filters);
     },
   },
   extraReducers: builder => {
@@ -428,6 +433,7 @@ export const {
   enableAllNotifications,
   setNotificationEnabled,
   setDistanceMiles,
+  setBucketListItems,
 } = bucketListSlice.actions;
 
 // Export reducer
