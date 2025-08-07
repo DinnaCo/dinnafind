@@ -92,3 +92,14 @@ export const getWalkingTimeString = (
 
   return `${walkingTime} min walk`;
 };
+
+export const isWithinRadius = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+  radius: number
+): boolean => {
+  const distance = getDistance(lat1, lon1, lat2, lon2);
+  return distance * 1609.34 <= radius; // Convert miles to meters
+};

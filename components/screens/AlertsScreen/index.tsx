@@ -1,17 +1,9 @@
 import { Icon, Slider } from '@rneui/themed';
-import React, { useEffect } from 'react';
-import {
-  Alert,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
-import { useGeofencing } from '@/hooks/useGeofencing';
+import React, { useEffect, useState } from 'react';
+import { Platform, SafeAreaView, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import GeofencingService from '@/services/GeofencingService';
+import LocationPermissionService from '@/services/LocationPermissionService';
+import { checkAndRequestLocationServices } from '@/utils/locationHelpers';
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
   selectMasterNotificationsEnabled,
@@ -28,10 +20,17 @@ export function AlertsScreen() {
   const bucketListItems = useAppSelector(state => state.bucketList.items);
   const masterEnabled = useAppSelector(selectMasterNotificationsEnabled);
   const distanceMiles = useAppSelector(selectDistanceMiles);
+  const [permissions, setPermissions] = useState({ foreground: false, background: false });
 
   useEffect(() => {
-    // No longer needed as per edit hint
+    checkPermissions();
   }, []);
+
+  const checkPermissions = async () => {
+    const perms = await LocationPermissionService.checkPermissions();
+    setPermissions(perms);
+    console.log('[AlertsScreen] Current permissions:', perms);
+  };
 
   // Fix type error: ensure bucketListItems is typed, or use type guard
   const restaurantsWithNotificationsEnabled = bucketListItems.filter(
@@ -39,18 +38,32 @@ export function AlertsScreen() {
   );
 
   const handleMasterToggle = async (value: boolean) => {
+    if (value) {
+      // Check location services and request permissions first
+      const locationServicesOk = await checkAndRequestLocationServices();
+
+      if (!locationServicesOk) {
+        // Don't enable if location services are disabled or permissions denied
+        console.log('[AlertsScreen] Location services disabled or permissions denied');
+        return;
+      }
+
+      // Update permissions state
+      await checkPermissions();
+    }
+
     dispatch(setMasterNotificationsEnabled(value));
 
-    // Always rebuild geofences based on current state
     if (value) {
-      // Master ON: Track ALL restaurants with notifications enabled
+      // Clear all existing geofences first
+      await GeofencingService.clearAllGeofences();
+
+      // Master ON: Track restaurants with individual notifications enabled
       for (const restaurant of bucketListItems as BucketListItem[]) {
         if (
-          restaurant.venue &&
-          restaurant.venue.geocodes &&
-          restaurant.venue.geocodes.main &&
-          typeof restaurant.venue.geocodes.main.latitude === 'number' &&
-          typeof restaurant.venue.geocodes.main.longitude === 'number'
+          restaurant.notificationsEnabled && // Check individual setting
+          restaurant.venue?.geocodes?.main?.latitude &&
+          restaurant.venue?.geocodes?.main?.longitude
         ) {
           await GeofencingService.addGeofence({
             id: restaurant.id,
@@ -59,13 +72,13 @@ export function AlertsScreen() {
             longitude: restaurant.venue.geocodes.main.longitude,
             radius: distanceMiles * 1609.34,
           });
+          console.log(`[AlertsScreen] Added geofence for: ${restaurant.venue.name}`);
         }
       }
     } else {
       // Master OFF: Remove all geofences
-      for (const restaurant of bucketListItems as BucketListItem[]) {
-        await GeofencingService.removeGeofence(restaurant.id);
-      }
+      await GeofencingService.clearAllGeofences();
+      console.log('[AlertsScreen] Cleared all geofences');
     }
   };
   console.log('🔍 Bucket list items:', JSON.stringify(bucketListItems, null, 2));
@@ -121,29 +134,34 @@ export function AlertsScreen() {
           <Text style={styles.sliderLabel}>Alert Distance: {distanceMiles?.toFixed(2)} miles</Text>
           <Slider
             value={distanceMiles}
+            disabled={!masterEnabled} // Disable when master is off
             onValueChange={async value => {
               dispatch(setDistanceMiles(value));
-              // Remove all geofences and re-add with new radius
-              for (const restaurant of bucketListItems as BucketListItem[]) {
-                await GeofencingService.removeGeofence(restaurant.id);
-              }
-              for (const restaurant of bucketListItems as BucketListItem[]) {
-                if (
-                  restaurant.notificationsEnabled &&
-                  restaurant.venue &&
-                  restaurant.venue.geocodes &&
-                  restaurant.venue.geocodes.main &&
-                  typeof restaurant.venue.geocodes.main.latitude === 'number' &&
-                  typeof restaurant.venue.geocodes.main.longitude === 'number'
-                ) {
-                  await GeofencingService.addGeofence({
-                    id: restaurant.id,
-                    name: restaurant.venue.name,
-                    latitude: restaurant.venue.geocodes.main.latitude,
-                    longitude: restaurant.venue.geocodes.main.longitude,
-                    radius: value * 1609.34,
-                  });
+
+              // Only update geofences if master is enabled
+              if (masterEnabled) {
+                // Clear all geofences
+                await GeofencingService.clearAllGeofences();
+
+                // Re-add with new radius
+                for (const restaurant of bucketListItems as BucketListItem[]) {
+                  if (
+                    restaurant.notificationsEnabled &&
+                    restaurant.venue?.geocodes?.main?.latitude &&
+                    restaurant.venue?.geocodes?.main?.longitude
+                  ) {
+                    await GeofencingService.addGeofence({
+                      id: restaurant.id,
+                      name: restaurant.venue.name,
+                      latitude: restaurant.venue.geocodes.main.latitude,
+                      longitude: restaurant.venue.geocodes.main.longitude,
+                      radius: value * 1609.34,
+                    });
+                  }
                 }
+                console.log(
+                  `[AlertsScreen] Updated all geofence radii to ${value.toFixed(2)} miles`
+                );
               }
             }}
             minimumValue={0.1}
@@ -170,12 +188,42 @@ export function AlertsScreen() {
         {masterEnabled && (
           <View style={styles.activeCountCard}>
             <Icon name="check-circle" type="material" size={20} color={theme.colors.success} />
-            <Text style={styles.activeCountText}>{bucketListItems.length} active alerts</Text>
+            <Text style={styles.activeCountText}>
+              {restaurantsWithNotificationsEnabled.length} active alerts
+            </Text>
+          </View>
+        )}
+
+        {/* Permissions Status */}
+        {masterEnabled && (
+          <View style={styles.permissionsCard}>
+            <View style={styles.permissionItem}>
+              <Icon
+                name={permissions.foreground ? 'check-circle' : 'cancel'}
+                type="material"
+                size={20}
+                color={permissions.foreground ? theme.colors.success : theme.colors.error}
+              />
+              <Text style={styles.permissionText}>
+                Location: {permissions.foreground ? 'Granted' : 'Denied'}
+              </Text>
+            </View>
+            <View style={styles.permissionItem}>
+              <Icon
+                name={permissions.background ? 'check-circle' : 'cancel'}
+                type="material"
+                size={20}
+                color={permissions.background ? theme.colors.success : theme.colors.error}
+              />
+              <Text style={styles.permissionText}>
+                Background: {permissions.background ? 'Granted' : 'Denied'}
+              </Text>
+            </View>
           </View>
         )}
 
         {/* Restaurant List */}
-        {!masterEnabled && bucketListItems.length > 0 && (
+        {bucketListItems.length > 0 && (
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Your Saved Restaurants</Text>
             <View style={styles.restaurantList}>
@@ -200,18 +248,30 @@ export function AlertsScreen() {
                     </View>
                     <Switch
                       value={restaurant.notificationsEnabled === true}
-                      onValueChange={enabled => {
+                      disabled={!masterEnabled} // Disable when master is off
+                      onValueChange={async enabled => {
                         dispatch(setNotificationEnabled({ id: restaurant.id as string, enabled }));
-                        if (enabled) {
-                          GeofencingService.addGeofence({
-                            id: restaurant.id as string,
-                            name,
-                            latitude: restaurant.venue?.geocodes?.main?.latitude ?? 0,
-                            longitude: restaurant.venue?.geocodes?.main?.longitude ?? 0,
-                            radius: distanceMiles * 1609.34,
-                          });
-                        } else {
-                          GeofencingService.removeGeofence(restaurant.id as string);
+
+                        // Only modify geofences if master is enabled
+                        if (masterEnabled) {
+                          if (enabled) {
+                            if (
+                              restaurant.venue?.geocodes?.main?.latitude &&
+                              restaurant.venue?.geocodes?.main?.longitude
+                            ) {
+                              await GeofencingService.addGeofence({
+                                id: restaurant.id as string,
+                                name,
+                                latitude: restaurant.venue.geocodes.main.latitude,
+                                longitude: restaurant.venue.geocodes.main.longitude,
+                                radius: distanceMiles * 1609.34,
+                              });
+                              console.log(`[AlertsScreen] Enabled geofence for: ${name}`);
+                            }
+                          } else {
+                            await GeofencingService.removeGeofence(restaurant.id as string);
+                            console.log(`[AlertsScreen] Disabled geofence for: ${name}`);
+                          }
                         }
                       }}
                       trackColor={{
@@ -517,5 +577,33 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.backgroundDark,
     marginBottom: 8,
+  },
+  permissionsCard: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  permissionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  permissionText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: theme.colors.grey1,
   },
 });

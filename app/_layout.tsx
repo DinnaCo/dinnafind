@@ -10,6 +10,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { store, persistor } from '@/hooks/redux';
 import { useDeferredDeepLink, parseDeepLink } from '@/hooks/useDeferredDeepLink';
 import { useSimpleDeferredLink } from '@/hooks/useSimpleDeferredLink';
+import { useAppInitialization } from '@/hooks/useAppInitialization';
 
 export default function RootLayout() {
   return (
@@ -35,6 +36,9 @@ export default function RootLayout() {
 
 function RootLayoutContent() {
   const router = useRouter();
+  
+  // Initialize app (geofencing, permissions, etc.)
+  useAppInitialization();
 
   // Handle deep links
   const handleDeepLink = (url: string) => {
