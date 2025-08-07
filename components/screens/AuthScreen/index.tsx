@@ -147,6 +147,16 @@ export function AuthScreen() {
                   : 'Already have an account? Sign in'}
               </Text>
             </TouchableOpacity>
+
+            {mode === 'signIn' && (
+              <TouchableOpacity
+                style={styles.forgotPassword}
+                onPress={() => router.push('/password-reset')}
+                disabled={loading}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -226,6 +236,14 @@ const styles = StyleSheet.create({
   switchModeText: {
     color: theme.colors.primary,
     fontSize: 16,
+  },
+  forgotPassword: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  forgotPasswordText: {
+    color: theme.colors.primary,
+    fontSize: 14,
   },
   divider: {
     flexDirection: 'row',
