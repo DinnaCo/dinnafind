@@ -33,12 +33,21 @@ export function OTPScreen({ email }: OTPScreenProps) {
 
   const handleOtpChange = (value: string, index: number) => {
     const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    // Auto-focus next input
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
+    if (value.length > 1) {
+      // Paste operation - distribute digits
+      const digits = value.replace(/\D/g, '').slice(0, 6).split('');
+      for (let i = 0; i < 6; i++) {
+        newOtp[i] = digits[i] || '';
+      }
+      setOtp(newOtp);
+      inputRefs.current[5]?.focus();
+    } else {
+      // Single digit input
+      newOtp[index] = value;
+      setOtp(newOtp);
+      if (value && index < 5) {
+        inputRefs.current[index + 1]?.focus();
+      }
     }
   };
 
@@ -171,7 +180,7 @@ export function OTPScreen({ email }: OTPScreenProps) {
                     onChangeText={value => handleOtpChange(value, index)}
                     onKeyPress={e => handleKeyPress(e, index)}
                     keyboardType="numeric"
-                    maxLength={1}
+                    maxLength={6}
                     editable={!loading}
                   />
                 ))}
