@@ -29,11 +29,19 @@ export default function TabLayout() {
 
   React.useEffect(() => {
     // Get initial count of active geofences
-    import('@/services/GeofencingService').then(({ default: service }) => {
+    import('@/services/GeofencingService').then(async ({ default: service }) => {
+      // Initialize service first if needed
+      await service.initialize();
       const activeCount = service.getActiveGeofences().length;
       setActiveGeofencesCount(activeCount);
     });
   }, []);
+
+  // Update active geofences count when bucket list changes
+  React.useEffect(() => {
+    const activeCount = bucketListCount; // For now, use bucket list count
+    setActiveGeofencesCount(activeCount);
+  }, [bucketListCount]);
 
   // Show loading spinner while checking auth
   if (loading) {

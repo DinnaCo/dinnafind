@@ -4,7 +4,7 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const GEOFENCE_TASK_NAME = 'MINIMAL_GEOFENCE_TASK';
-const NOTIFICATION_COOLDOWN = 10; // 5 minutes in milliseconds
+const NOTIFICATION_COOLDOWN = 5 * 60 * 1000; // 5 minutes in milliseconds
 const STORAGE_KEY = 'dinnafind_geofences';
 
 type Geofence = {
@@ -135,21 +135,49 @@ class GeofencingService {
   }
 
   private async _updateGeofences(): Promise<void> {
-    if (this.geofences.length === 0) {
-      await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
-      return;
+    try {
+      // First check if we have location permissions
+      const { status: foregroundStatus } = await Location.getForegroundPermissionsAsync();
+      if (foregroundStatus !== 'granted') {
+        console.warn('[GeofencingService] No foreground location permission');
+        return;
+      }
+
+      const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
+      if (backgroundStatus !== 'granted') {
+        console.warn('[GeofencingService] No background location permission');
+        return;
+      }
+
+      // Stop existing geofencing task
+      try {
+        await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
+      } catch (stopError) {
+        // It's ok if there's no task to stop
+        console.log('[GeofencingService] No existing geofencing task to stop');
+      }
+
+      if (this.geofences.length === 0) {
+        console.log('[GeofencingService] No geofences to monitor');
+        return;
+      }
+
+      const regions = this.geofences.map(geofence => ({
+        identifier: geofence.id,
+        latitude: geofence.latitude,
+        longitude: geofence.longitude,
+        radius: Math.max(geofence.radius, 100), // Minimum 100m radius for iOS
+        notifyOnEnter: true, // Only notify on ENTER
+        notifyOnExit: false, // Don't notify on EXIT
+      }));
+
+      console.log('[GeofencingService] Starting geofencing with regions:', regions);
+      await Location.startGeofencingAsync(GEOFENCE_TASK_NAME, regions);
+      console.log('[GeofencingService] Geofencing started successfully');
+    } catch (error) {
+      console.error('[GeofencingService] Failed to update geofences:', error);
+      // Don't throw - just log the error
     }
-
-    const regions = this.geofences.map(geofence => ({
-      identifier: geofence.id,
-      latitude: geofence.latitude,
-      longitude: geofence.longitude,
-      radius: geofence.radius,
-      notifyOnEnter: true, // Only notify on ENTER
-      notifyOnExit: false, // Don't notify on EXIT
-    }));
-
-    await Location.startGeofencingAsync(GEOFENCE_TASK_NAME, regions);
   }
 
   // Debug method to log all geofences
@@ -161,17 +189,33 @@ class GeofencingService {
   async initialize(): Promise<void> {
     console.log('[GeofencingService] Initializing...');
 
-    // Request notification permissions
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== 'granted') {
-      console.warn('[GeofencingService] Notification permissions not granted');
-    } else {
-      console.log('[GeofencingService] Notification permissions granted');
-    }
+    try {
+      // Check if the task is already defined
+      const isTaskDefined = await TaskManager.isTaskDefined(GEOFENCE_TASK_NAME);
+      console.log('[GeofencingService] Task defined:', isTaskDefined);
 
-    // Load saved geofences
-    await this._loadGeofences();
-    console.log('[GeofencingService] Loaded geofences:', this.geofences.length);
+      // Request notification permissions
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.warn('[GeofencingService] Notification permissions not granted');
+      } else {
+        console.log('[GeofencingService] Notification permissions granted');
+      }
+
+      // Load saved geofences
+      await this._loadGeofences();
+      console.log('[GeofencingService] Loaded geofences:', this.geofences.length);
+
+      // If we have geofences and permissions, restart monitoring
+      if (this.geofences.length > 0) {
+        const { status: locationStatus } = await Location.getForegroundPermissionsAsync();
+        if (locationStatus === 'granted') {
+          await this._updateGeofences();
+        }
+      }
+    } catch (error) {
+      console.error('[GeofencingService] Initialization error:', error);
+    }
   }
 
   // Restart geofencing with current settings
@@ -180,6 +224,29 @@ class GeofencingService {
     await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
     await this._updateGeofences();
     console.log('[GeofencingService] Geofencing restarted');
+  }
+
+  // Get active geofences
+  getActiveGeofences(): Geofence[] {
+    return [...this.geofences];
+  }
+
+  // Clear all geofences
+  async clearAllGeofences(): Promise<void> {
+    console.log('[GeofencingService] Clearing all geofences...');
+    this.geofences = [];
+    await this._saveGeofences();
+    try {
+      await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
+      console.log('[GeofencingService] Stopped geofencing task');
+    } catch (error) {
+      console.log('[GeofencingService] No active geofences to stop');
+    }
+  }
+
+  // Check if geofence exists
+  hasGeofence(id: string): boolean {
+    return this.geofences.some(g => g.id === id);
   }
 }
 
