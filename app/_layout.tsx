@@ -79,8 +79,10 @@ function RootLayoutContent() {
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="auth" />
+        <Stack.Screen name="auth/index" />
         <Stack.Screen name="auth-callback" />
+        <Stack.Screen name="password-reset" />
+        <Stack.Screen name="otp" />
         <Stack.Screen
           name="test-deferred-link"
           options={{ headerShown: true, title: 'Test Deep Links' }}
