@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { AppState } from 'react-native';
 import 'react-native-url-polyfill/auto';
@@ -11,17 +11,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please check your .env file.');
 }
 
-// SecureStore adapter to persist Supabase session in device keychain/keystore
-const secureStorage = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) =>
-    SecureStore.setItemAsync(key, value, { keychainService: 'dinnafind-auth' }),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
-};
-
+// Use AsyncStorage for session persistence
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: secureStorage as any,
+    storage: AsyncStorage as any,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
