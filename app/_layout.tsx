@@ -138,14 +138,7 @@ function RootLayoutContent() {
         <Stack.Screen name="auth-callback" />
         <Stack.Screen name="password-reset" />
         <Stack.Screen name="otp" />
-        <Stack.Screen
-          name="test-deferred-link"
-          options={{ headerShown: true, title: 'Test Deep Links' }}
-        />
-        <Stack.Screen
-          name="test-venue-deep-links"
-          options={{ headerShown: true, title: 'Test Venue Deep Links' }}
-        />
+
         <Stack.Screen name="[...unmatched]" />
         <Stack.Screen
           name="detail"
