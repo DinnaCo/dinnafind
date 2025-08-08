@@ -1,21 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useAppDispatch, useAppSelector } from '@/store';
+import { useAppSelector } from '@/store';
 import GeofencingService from '@/services/GeofencingService';
-import LocationPermissionService from '@/services/LocationPermissionService';
 import { checkAndRequestLocationServices } from '@/utils/locationHelpers';
 import {
   selectMasterNotificationsEnabled,
   selectDistanceMiles,
-  setBucketListItems,
-  setMasterNotificationsEnabled,
-  setDistanceMiles,
 } from '@/store/slices/bucketListSlice';
 import { BucketListItem } from '@/models/bucket-list';
 import { setAppStateFromUserData } from '@/utils/appStateHelpers';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function useAppInitialization() {
-  const dispatch = useAppDispatch();
   const { user, session } = useAuth();
   const bucketListItems = useAppSelector(state => state.bucketList.items) as BucketListItem[];
   const masterEnabled = useAppSelector(selectMasterNotificationsEnabled);
@@ -30,6 +25,7 @@ export function useAppInitialization() {
       // No user, skip initialization
       setIsInitializing(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, session]);
 
   /**
@@ -115,6 +111,7 @@ export function useAppInitialization() {
           latitude: item.venue.geocodes.main.latitude,
           longitude: item.venue.geocodes.main.longitude,
           radius: distanceMiles * 1609.34, // Convert miles to meters
+          venueId: item.venue.id,
         });
         addedCount++;
         console.log(`[AppInit] Added geofence for: ${item.venue.name}`);
