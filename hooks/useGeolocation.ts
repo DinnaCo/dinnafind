@@ -50,12 +50,10 @@ export const useGeolocation = (): GeolocationHook => {
         return;
       }
 
-      // Get current position
+      // Get current position with simpler options
       console.log('🗺️ useGeolocation: Getting current position...');
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
-        maximumAge: 60000, // Accept cached location up to 1 minute old
-        timeout: 10000, // 10 second timeout
       });
 
       console.log('🗺️ useGeolocation: Location received:', location.coords);
@@ -68,9 +66,6 @@ export const useGeolocation = (): GeolocationHook => {
 
       dispatch(setUserLocation(newCoordinates));
 
-      // Also dispatch the getUserLocation action to trigger any sagas listening for it
-      dispatch(getUserLocation());
-      
       console.log('🗺️ useGeolocation: Location updated in Redux:', newCoordinates);
     } catch (error: unknown) {
       const errorMsg = (error as Error).message || 'Failed to get location';

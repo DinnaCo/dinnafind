@@ -1,5 +1,6 @@
 import { supabase } from '@/utils/supabase';
 import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 import Constants from 'expo-constants';
 
 // This ensures the browser dismisses properly after auth
@@ -7,11 +8,11 @@ WebBrowser.maybeCompleteAuthSession();
 
 export const signInWithGoogle = async () => {
   try {
-    // Create redirect URI based on environment
+    // Create redirect URI that works for both Expo Go and standalone builds
     const isExpoGo = Constants.appOwnership === 'expo';
     const redirectUrl = isExpoGo
-      ? `https://auth.expo.io/@${Constants.manifest?.owner || 'your-username'}/dinnafind`
-      : 'dinnafind://auth-callback';
+      ? AuthSession.makeRedirectUri()
+      : AuthSession.makeRedirectUri({ scheme: 'dinnafind', path: 'auth-callback' });
 
     // Request OAuth URL from Supabase
     const response = await supabase.auth.signInWithOAuth({
@@ -47,58 +48,57 @@ export const signInWithGoogle = async () => {
     });
 
     if (authSession.type === 'success' && authSession.url) {
-      // Parse tokens from the callback URL
       const url = authSession.url;
+      // Try modern PKCE code exchange first (query param ?code=...)
+      const query = url.split('?')[1] || '';
+      const queryParams = new URLSearchParams(query);
+      const code = queryParams.get('code');
+
+      if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          return { success: false, error: error.message };
+        }
+        if (data?.session) {
+          return { success: true, user: data.session.user };
+        }
+      }
+
+      // Fallback: implicit grant tokens in hash fragment
       if (url.includes('#')) {
         const fragment = url.split('#')[1];
         const params = new URLSearchParams(fragment);
         const access_token = params.get('access_token');
         const refresh_token = params.get('refresh_token');
-
         if (access_token && refresh_token) {
-          // Set the session manually
           const { data, error } = await supabase.auth.setSession({
             access_token,
             refresh_token,
           });
-
-          if (error) {
-            return { success: false, error: error.message };
-          }
-
-          // Double-check the session was created
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-          if (session) {
-            return { success: true, user: session.user };
-          }
+          if (error) return { success: false, error: error.message };
+          if (data?.session) return { success: true, user: data.session.user };
         }
       }
 
-      // If we couldn't parse tokens, wait and check for session
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
+      // As last resort, small delay then ask client for session
+      await new Promise(resolve => setTimeout(resolve, 1500));
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (session) {
-        return { success: true, user: session.user };
-      } else {
-        return {
-          success: false,
-          error: 'Authentication completed but no session was created. Please try again.',
-        };
-      }
+      if (session) return { success: true, user: session.user };
+      return {
+        success: false,
+        error: 'Authentication completed but no session was created. Please try again.',
+      };
     } else if (authSession.type === 'cancel') {
       return { success: false, error: 'Authentication was cancelled' };
     } else {
       return { success: false, error: 'Authentication failed' };
     }
-  } catch (error) {
+  } catch (err) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: err instanceof Error ? err.message : 'Unknown error occurred',
     };
   }
 };

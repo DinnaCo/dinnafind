@@ -71,17 +71,18 @@ export function useAppInitialization() {
       // Step 2: Initialize GeofencingService (loads saved geofences from AsyncStorage)
       await GeofencingService.initialize();
 
-      // Step 3: Skip location setup during app initialization to avoid hanging
-      // Location services will be checked when user navigates to Explore screen
+      // Step 3: Check and request location services
       if (masterEnabled) {
-        console.log(
-          '[AppInit] Master notifications enabled, but skipping location setup during init'
-        );
-        console.log(
-          '[AppInit] Location services will be checked when user navigates to Explore screen'
-        );
+        console.log('[AppInit] Master notifications enabled, checking location services...');
+        const locationServicesEnabled = await checkAndRequestLocationServices();
+        if (locationServicesEnabled) {
+          console.log('[AppInit] Location services enabled, rebuilding geofences...');
+          await rebuildGeofencesFromState();
+        } else {
+          console.log('[AppInit] Location services not available, skipping geofence setup');
+        }
       } else {
-        console.log('[AppInit] Master notifications disabled, skipping geofence setup');
+        console.log('[AppInit] Master notifications disabled, skipping location setup');
       }
 
       console.log('[AppInit] App initialization complete');

@@ -18,6 +18,7 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isAuthenticated: boolean;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -53,8 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             lastLogin: Date.now(),
           })
         );
+        setIsAuthenticated(true);
       } else {
         dispatch(logoutSuccess());
+        setIsAuthenticated(false);
       }
 
       setLoading(false);
@@ -78,8 +82,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             lastLogin: Date.now(),
           })
         );
+        setIsAuthenticated(true);
       } else {
         dispatch(logoutSuccess());
+        setIsAuthenticated(false);
       }
 
       setLoading(false);
@@ -220,6 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         session,
         loading,
+        isAuthenticated,
         signUp,
         signIn,
         signInWithGoogle,
