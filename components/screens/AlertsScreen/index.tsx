@@ -1,8 +1,18 @@
 import { Icon, Slider } from '@rneui/themed';
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, SafeAreaView, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { checkAllPermissions } from '@/services/PermissionsService';
+import {
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+  TouchableOpacity,
+  Linking,
+} from 'react-native';
 import GeofencingService from '@/services/GeofencingService';
-import LocationPermissionService from '@/services/LocationPermissionService';
 import { checkAndRequestLocationServices } from '@/utils/locationHelpers';
 import { useAppDispatch, useAppSelector } from '@/store';
 import {
@@ -20,7 +30,11 @@ export function AlertsScreen() {
   const bucketListItems = useAppSelector(state => state.bucketList.items);
   const masterEnabled = useAppSelector(selectMasterNotificationsEnabled);
   const distanceMiles = useAppSelector(selectDistanceMiles);
-  const [permissions, setPermissions] = useState({ foreground: false, background: false });
+  const [permissions, setPermissions] = useState({
+    location: { foreground: false, background: false },
+    notifications: { granted: false },
+  });
+  const [isPermissionsExpanded, setIsPermissionsExpanded] = useState(false);
   const [sliderValue, setSliderValue] = useState<number>(distanceMiles);
   const isUpdatingRef = useRef(false);
 
@@ -29,20 +43,13 @@ export function AlertsScreen() {
   }, []);
 
   const checkPermissions = async () => {
-    const perms = await LocationPermissionService.checkPermissions();
+    const perms = await checkAllPermissions();
     setPermissions(perms);
     console.log('[AlertsScreen] Current permissions:', perms);
   };
-
-  // Keep local slider state in sync if distance changes elsewhere
   useEffect(() => {
     setSliderValue(distanceMiles);
   }, [distanceMiles]);
-
-  // Fix type error: ensure bucketListItems is typed, or use type guard
-  const restaurantsWithNotificationsEnabled = bucketListItems.filter(
-    (item: any) => item.notificationsEnabled === true
-  );
 
   const handleMasterToggle = async (value: boolean) => {
     if (value) {
@@ -62,13 +69,11 @@ export function AlertsScreen() {
     dispatch(setMasterNotificationsEnabled(value));
 
     if (value) {
+      // Master ON: enable all geofences
       // Clear all existing geofences first
       await GeofencingService.clearAllGeofences();
-
-      // Master ON: Track restaurants with individual notifications enabled
       for (const restaurant of bucketListItems as BucketListItem[]) {
         if (
-          restaurant.notificationsEnabled && // Check individual setting
           restaurant.venue?.geocodes?.main?.latitude &&
           restaurant.venue?.geocodes?.main?.longitude
         ) {
@@ -84,9 +89,25 @@ export function AlertsScreen() {
         }
       }
     } else {
-      // Master OFF: Remove all geofences
+      // Master OFF: Revert to individual settings
       await GeofencingService.clearAllGeofences();
-      console.log('[AlertsScreen] Cleared all geofences');
+      for (const restaurant of bucketListItems as BucketListItem[]) {
+        if (
+          restaurant.notificationsEnabled &&
+          restaurant.venue?.geocodes?.main?.latitude &&
+          restaurant.venue?.geocodes?.main?.longitude
+        ) {
+          await GeofencingService.addGeofence({
+            id: restaurant.id,
+            name: restaurant.venue.name,
+            latitude: restaurant.venue.geocodes.main.latitude,
+            longitude: restaurant.venue.geocodes.main.longitude,
+            radius: distanceMiles * 1609.34,
+            venueId: restaurant.venue.id,
+          });
+          console.log(`[AlertsScreen] Re-added geofence for: ${restaurant.venue.name}`);
+        }
+      }
     }
   };
   console.log('🔍 Bucket list items:', JSON.stringify(bucketListItems, null, 2));
@@ -104,7 +125,7 @@ export function AlertsScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Location Alerts</Text>
         <Text style={styles.headerSubtitle}>
-          Get notified when you{`'`}re near saved restaurants
+          Get notified when you&apos;re near saved restaurants
         </Text>
       </View>
 
@@ -205,50 +226,155 @@ export function AlertsScreen() {
           </View>
         )}
 
-        {/* Active Alerts Count */}
         {masterEnabled && (
-          <View style={styles.activeCountCard}>
-            <Icon name="check-circle" type="material" size={20} color={theme.colors.success} />
-            <Text style={styles.activeCountText}>
-              {restaurantsWithNotificationsEnabled.length} active alerts
-            </Text>
-          </View>
-        )}
+          <View style={styles.permissionsContainer}>
+            <TouchableOpacity
+              style={styles.permissionHeader}
+              onPress={() => setIsPermissionsExpanded(!isPermissionsExpanded)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Icon
+                  name="shield-check"
+                  type="material-community"
+                  size={24}
+                  color={theme.colors.grey1}
+                />
+                <Text style={styles.permissionTitle}>Permissions</Text>
+              </View>
+              <Icon
+                name={isPermissionsExpanded ? 'chevron-up' : 'chevron-down'}
+                type="material-community"
+                size={24}
+                color={theme.colors.grey1}
+              />
+            </TouchableOpacity>
+            {isPermissionsExpanded && (
+              <>
+                <Text style={styles.permissionDescription}>
+                  Location alerts require foreground and background permissions to notify you when
+                  you&apos;re near a saved restaurant, even when the app is closed.
+                </Text>
 
-        {/* Permissions Status */}
-        {masterEnabled && (
-          <View style={styles.permissionsCard}>
-            <View style={styles.permissionItem}>
-              <Icon
-                name={permissions.foreground ? 'check-circle' : 'cancel'}
-                type="material"
-                size={20}
-                color={permissions.foreground ? theme.colors.success : theme.colors.error}
-              />
-              <Text style={styles.permissionText}>
-                Location: {permissions.foreground ? 'Granted' : 'Denied'}
-              </Text>
-            </View>
-            <View style={styles.permissionItem}>
-              <Icon
-                name={permissions.background ? 'check-circle' : 'cancel'}
-                type="material"
-                size={20}
-                color={permissions.background ? theme.colors.success : theme.colors.error}
-              />
-              <Text style={styles.permissionText}>
-                Background: {permissions.background ? 'Granted' : 'Denied'}
-              </Text>
-            </View>
+                <View style={styles.permissionStatusCard}>
+                  {/* Location Permission */}
+                  <View
+                    style={[
+                      styles.permissionItem,
+                      { borderBottomWidth: 1, borderBottomColor: theme.colors.grey4 },
+                    ]}
+                  >
+                    <Icon
+                      name={permissions.location.foreground ? 'check-circle' : 'alert-circle'}
+                      type="material-community"
+                      size={24}
+                      color={
+                        permissions.location.foreground ? theme.colors.success : theme.colors.error
+                      }
+                    />
+                    <View style={styles.permissionTextContainer}>
+                      <Text style={styles.permissionText}>Location</Text>
+                      <Text style={styles.permissionStatusText}>
+                        {permissions.location.foreground ? 'Granted' : 'Denied'}
+                      </Text>
+                      {!permissions.location.foreground && (
+                        <Text style={styles.permissionHelpText}>
+                          Tap &apos;Open Settings&apos;, go to Location, and select &apos;While
+                          Using the App&apos;.
+                        </Text>
+                      )}
+                    </View>
+                    {!permissions.location.foreground && (
+                      <TouchableOpacity
+                        style={styles.fixButton}
+                        onPress={() => Linking.openSettings()}
+                      >
+                        <Text style={styles.fixButtonText}>Open Settings</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* Background Location Permission */}
+                  <View
+                    style={[
+                      styles.permissionItem,
+                      { borderBottomWidth: 1, borderBottomColor: theme.colors.grey4 },
+                    ]}
+                  >
+                    <Icon
+                      name={permissions.location.background ? 'check-circle' : 'alert-circle'}
+                      type="material-community"
+                      size={24}
+                      color={
+                        permissions.location.background ? theme.colors.success : theme.colors.error
+                      }
+                    />
+                    <View style={styles.permissionTextContainer}>
+                      <Text style={styles.permissionText}>Background Location</Text>
+                      <Text style={styles.permissionStatusText}>
+                        {permissions.location.background
+                          ? 'Set to "Always"'
+                          : 'Not set to "Always"'}
+                      </Text>
+                      {!permissions.location.background && (
+                        <Text style={styles.permissionHelpText}>
+                          Required for alerts when app is closed. Select &apos;Always&apos;.
+                        </Text>
+                      )}
+                    </View>
+                    {!permissions.location.background && (
+                      <TouchableOpacity
+                        style={styles.fixButton}
+                        onPress={() => Linking.openSettings()}
+                      >
+                        <Text style={styles.fixButtonText}>Open Settings</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* Notifications Permission */}
+                  <View style={[styles.permissionItem, { borderBottomWidth: 0 }]}>
+                    <Icon
+                      name={permissions.notifications.granted ? 'check-circle' : 'alert-circle'}
+                      type="material-community"
+                      size={24}
+                      color={
+                        permissions.notifications.granted
+                          ? theme.colors.success
+                          : theme.colors.error
+                      }
+                    />
+                    <View style={styles.permissionTextContainer}>
+                      <Text style={styles.permissionText}>Notifications</Text>
+                      <Text style={styles.permissionStatusText}>
+                        {permissions.notifications.granted ? 'Enabled' : 'Disabled'}
+                      </Text>
+                      {!permissions.notifications.granted && (
+                        <Text style={styles.permissionHelpText}>
+                          Enable notifications to receive alerts.
+                        </Text>
+                      )}
+                    </View>
+                    {!permissions.notifications.granted && (
+                      <TouchableOpacity
+                        style={styles.fixButton}
+                        onPress={() => Linking.openSettings()}
+                      >
+                        <Text style={styles.fixButtonText}>Open Settings</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              </>
+            )}
           </View>
         )}
 
         {/* Restaurant List */}
-        {bucketListItems.length > 0 && (
+        {!masterEnabled && bucketListItems.length > 0 && (
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Your Saved Restaurants</Text>
             <View style={styles.restaurantList}>
-              {bucketListItems.map((restaurant: BucketListItem) => {
+              {restaurantsWithLocation.map((restaurant: BucketListItem) => {
                 // Defensive: ensure id and venue fields are present and valid
 
                 // Defensive: ensure name, address, category are strings (fallback to empty string if not)
@@ -269,12 +395,12 @@ export function AlertsScreen() {
                     </View>
                     <Switch
                       value={restaurant.notificationsEnabled === true}
-                      disabled={!masterEnabled} // Disable when master is off
+                      disabled={masterEnabled} // Individual toggles are disabled when master is ON
                       onValueChange={async enabled => {
                         dispatch(setNotificationEnabled({ id: restaurant.id as string, enabled }));
 
-                        // Only modify geofences if master is enabled
-                        if (masterEnabled) {
+                        // Geofence is only managed here when master is OFF
+                        if (!masterEnabled) {
                           if (enabled) {
                             if (
                               restaurant.venue?.geocodes?.main?.latitude &&
@@ -447,21 +573,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  activeCountCard: {
-    backgroundColor: theme.colors.success + '10',
-    borderRadius: 8,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  activeCountText: {
-    marginLeft: 8,
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.success,
-  },
+
   sectionContainer: {
     marginBottom: 24,
   },
@@ -599,32 +711,82 @@ const styles = StyleSheet.create({
     color: theme.colors.backgroundDark,
     marginBottom: 8,
   },
-  permissionsCard: {
+  permissionsContainer: {
     backgroundColor: theme.colors.background,
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
     marginBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 2,
+        elevation: 3,
       },
     }),
+  },
+  permissionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  permissionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.backgroundDark,
+    marginLeft: 10,
+  },
+  permissionDescription: {
+    fontSize: 14,
+    color: theme.colors.grey2,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  permissionStatusCard: {
+    backgroundColor: theme.colors.grey5,
+    borderRadius: 10,
+    padding: 12,
   },
   permissionItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.grey4,
+  },
+  permissionTextContainer: {
+    flex: 1,
+    marginLeft: 12,
   },
   permissionText: {
-    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.colors.backgroundDark,
+  },
+  permissionStatusText: {
     fontSize: 14,
-    color: theme.colors.grey1,
+    color: theme.colors.grey2,
+    marginTop: 2,
+  },
+  permissionHelpText: {
+    fontSize: 12,
+    color: theme.colors.grey3,
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  fixButton: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+  },
+  fixButtonText: {
+    color: theme.colors.background,
+    fontWeight: '600',
+    fontSize: 14,
   },
 });
