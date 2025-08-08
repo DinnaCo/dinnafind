@@ -15,6 +15,7 @@ interface GeolocationHook {
   loading: boolean;
   error: string | null;
   permissionGranted: boolean;
+  permissionChecked: boolean;
   requestLocation: () => void;
 }
 
@@ -27,6 +28,7 @@ export const useGeolocation = (): GeolocationHook => {
   const permissionGranted = useAppSelector(state => state.venues.locationPermissionGranted);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [permissionChecked, setPermissionChecked] = useState<boolean>(false);
 
   // Request location permissions and get location
   const requestLocation = useCallback(async () => {
@@ -76,31 +78,38 @@ export const useGeolocation = (): GeolocationHook => {
     }
   }, [dispatch]);
 
-  // Check for location permissions on mount
+  // Check for location permissions on mount (only once)
   useEffect(() => {
     const checkPermission = async () => {
       try {
         const { status } = await Location.getForegroundPermissionsAsync();
         console.log('🗺️ useGeolocation: Current permission status:', status);
         dispatch(setLocationPermission(status === 'granted'));
+        setPermissionChecked(true);
 
+        // Only request location if permission is granted and we don't have coordinates
         if (status === 'granted' && !coordinates) {
           console.log('🗺️ useGeolocation: Permission granted, requesting location');
           requestLocation();
         }
       } catch (err) {
         console.error('Error checking location permission:', err);
+        setPermissionChecked(true);
       }
     };
 
-    checkPermission();
-  }, [dispatch, requestLocation, coordinates]);
+    // Only check permissions if we haven't already
+    if (!permissionChecked) {
+      checkPermission();
+    }
+  }, [dispatch, requestLocation, coordinates, permissionChecked]);
 
   return {
     coordinates,
     loading,
     error,
     permissionGranted,
+    permissionChecked,
     requestLocation,
   };
 };

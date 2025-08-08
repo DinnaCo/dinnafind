@@ -17,6 +17,7 @@ export function useAppInitialization() {
   const distanceMiles = useAppSelector(selectDistanceMiles);
   const [isInitializing, setIsInitializing] = useState(true);
   const [initializationError, setInitializationError] = useState<string | null>(null);
+  const [initializationStep, setInitializationStep] = useState<string>('Starting...');
 
   useEffect(() => {
     if (user && session) {
@@ -33,6 +34,7 @@ export function useAppInitialization() {
    */
   const loadUserData = async (userId: string) => {
     console.log('[AppInit] Loading user data from Supabase...');
+    setInitializationStep('Loading user data...');
 
     try {
       const success = await setAppStateFromUserData(userId);
@@ -52,6 +54,7 @@ export function useAppInitialization() {
     console.log('[AppInit] Starting app initialization...');
     setIsInitializing(true);
     setInitializationError(null);
+    setInitializationStep('Starting...');
 
     try {
       if (!user?.id) {
@@ -59,20 +62,24 @@ export function useAppInitialization() {
       }
 
       // Step 1: Load all user data from Supabase
+      setInitializationStep('Loading user preferences...');
       const dataLoaded = await loadUserData(user.id);
       if (!dataLoaded) {
         throw new Error('Failed to load user data');
       }
 
       // Step 2: Initialize GeofencingService (loads saved geofences from AsyncStorage)
+      setInitializationStep('Initializing location services...');
       await GeofencingService.initialize();
 
       // Step 3: Check and request location services
       if (masterEnabled) {
         console.log('[AppInit] Master notifications enabled, checking location services...');
+        setInitializationStep('Checking location permissions...');
         const locationServicesEnabled = await checkAndRequestLocationServices();
         if (locationServicesEnabled) {
           console.log('[AppInit] Location services enabled, rebuilding geofences...');
+          setInitializationStep('Setting up location alerts...');
           await rebuildGeofencesFromState();
         } else {
           console.log('[AppInit] Location services not available, skipping geofence setup');
@@ -128,6 +135,7 @@ export function useAppInitialization() {
   return {
     isInitializing,
     initializationError,
+    initializationStep,
     loadUserData,
   };
 }
