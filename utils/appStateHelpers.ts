@@ -24,11 +24,12 @@ export const setAppStateFromUserData = async (userId: string): Promise<boolean> 
           id: userProfile.id,
           email: userProfile.email,
           displayName: userProfile.displayName || userProfile.email,
+          photoUrl: userProfile.photoUrl,
           createdAt: userProfile.createdAt,
           lastLogin: userProfile.lastLogin,
         })
       );
-      console.log('[AppStateHelper] User profile loaded');
+      console.log('[AppStateHelper] User profile loaded:', userProfile);
     }
 
     // Load bucket list items

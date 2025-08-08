@@ -1,12 +1,13 @@
-import { makeRedirectUri } from 'expo-auth-session';
-import { Session, User } from '@supabase/supabase-js';
-import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { useAppDispatch } from '@/store';
 import { loginSuccess, logoutSuccess } from '@/store/slices/authSlice';
-import GeofencingService from '@/services/GeofencingService';
 import { supabase } from '@/utils/supabase';
+import { makeRedirectUri } from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+import GeofencingService from '@/services/GeofencingService';
+import { SupabaseDataService } from '@/services/supabaseDataService';
+import type { User, Session } from '@supabase/supabase-js';
 // This is needed for OAuth redirects
 WebBrowser.maybeCompleteAuthSession();
 
@@ -46,15 +47,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Dispatch Redux action based on session state
       if (session?.user) {
-        dispatch(
-          loginSuccess({
-            id: session.user.id,
-            email: session.user.email || '',
-            displayName: session.user.user_metadata?.full_name || session.user.email || '',
-            createdAt: session.user.created_at ? new Date(session.user.created_at).getTime() : 0,
-            lastLogin: Date.now(),
-          })
+        console.log('AuthContext: Session user metadata:', session.user.user_metadata);
+        console.log(
+          'AuthContext: Avatar URL from metadata:',
+          session.user.user_metadata?.avatar_url
         );
+        console.log('AuthContext: Picture from metadata:', session.user.user_metadata?.picture);
+
+        const photoUrl =
+          session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture;
+
+        const userProfile = {
+          id: session.user.id,
+          email: session.user.email || '',
+          displayName: session.user.user_metadata?.full_name || session.user.email || '',
+          photoUrl: photoUrl || undefined,
+          createdAt: session.user.created_at ? new Date(session.user.created_at).getTime() : 0,
+          lastLogin: Date.now(),
+        };
+
+        console.log('AuthContext: Created userProfile:', userProfile);
+
+        // Store user profile in Supabase
+        SupabaseDataService.upsertUserProfile(userProfile)
+          .then(success => {
+            if (success) {
+              console.log('AuthContext: User profile stored in Supabase successfully');
+            } else {
+              console.log('AuthContext: Failed to store user profile in Supabase');
+            }
+          })
+          .catch(error => {
+            console.log('AuthContext: Error storing user profile:', error);
+          });
+
+        dispatch(loginSuccess(userProfile));
         setIsAuthenticated(true);
       } else {
         dispatch(logoutSuccess());
@@ -73,15 +100,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Dispatch Redux action based on auth state change
       if (session?.user) {
-        dispatch(
-          loginSuccess({
-            id: session.user.id,
-            email: session.user.email || '',
-            displayName: session.user.user_metadata?.full_name || session.user.email || '',
-            createdAt: session.user.created_at ? new Date(session.user.created_at).getTime() : 0,
-            lastLogin: Date.now(),
-          })
+        console.log('AuthContext: Session user metadata:', session.user.user_metadata);
+        console.log(
+          'AuthContext: Avatar URL from metadata:',
+          session.user.user_metadata?.avatar_url
         );
+        console.log('AuthContext: Picture from metadata:', session.user.user_metadata?.picture);
+
+        const photoUrl =
+          session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture;
+
+        const userProfile = {
+          id: session.user.id,
+          email: session.user.email || '',
+          displayName: session.user.user_metadata?.full_name || session.user.email || '',
+          photoUrl: photoUrl || undefined,
+          createdAt: session.user.created_at ? new Date(session.user.created_at).getTime() : 0,
+          lastLogin: Date.now(),
+        };
+
+        console.log('AuthContext: Created userProfile:', userProfile);
+
+        // Store user profile in Supabase
+        SupabaseDataService.upsertUserProfile(userProfile)
+          .then(success => {
+            if (success) {
+              console.log('AuthContext: User profile stored in Supabase successfully');
+            } else {
+              console.log('AuthContext: Failed to store user profile in Supabase');
+            }
+          })
+          .catch(error => {
+            console.log('AuthContext: Error storing user profile:', error);
+          });
+
+        dispatch(loginSuccess(userProfile));
         setIsAuthenticated(true);
       } else {
         dispatch(logoutSuccess());

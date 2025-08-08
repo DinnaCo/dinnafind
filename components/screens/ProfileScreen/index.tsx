@@ -1,17 +1,24 @@
 import { Icon } from '@rneui/themed';
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppSelector } from '@/store';
 import { useAuth } from '@/contexts/AuthContext';
 import { selectUser } from '@/store/slices/authSlice';
 import { theme } from '@/theme';
+import { UserAvatar } from '@/components/common/UserAvatar';
 
 export function ProfileScreen() {
   const { user, signOut } = useAuth();
   const currentUser = useAppSelector(selectUser);
 
-
+  // Debug logging to see what user data we have
+  React.useEffect(() => {
+    console.log('ProfileScreen: Auth user:', user);
+    console.log('ProfileScreen: Redux currentUser:', currentUser);
+    console.log('ProfileScreen: User photoUrl:', currentUser?.photoUrl);
+    console.log('ProfileScreen: Auth user metadata:', user?.user_metadata);
+  }, [user, currentUser]);
 
   const handleSignOut = async () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -34,45 +41,10 @@ export function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Image source={{ uri: currentUser?.photoUrl }} />
-          <Text style={styles.email}>{currentUser?.displayName || 'No email'}</Text>
+          <UserAvatar user={currentUser} size={100} />
+          <Text style={styles.displayName}>{currentUser?.displayName || 'No name'}</Text>
           <Text style={styles.email}>{currentUser?.email || 'No email'}</Text>
         </View>
-
-        {/* <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Icon name="person" type="material" size={24} color={theme.colors.grey1} />
-            <Text style={styles.menuItemText}>Edit Profile</Text>
-            <Icon name="chevron-right" type="material" size={24} color={theme.colors.grey3} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Icon name="notifications" type="material" size={24} color={theme.colors.grey1} />
-            <Text style={styles.menuItemText}>Notifications</Text>
-            <Icon name="chevron-right" type="material" size={24} color={theme.colors.grey3} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Icon name="info" type="material" size={24} color={theme.colors.grey1} />
-            <Text style={styles.menuItemText}>About DinnaFind</Text>
-            <Icon name="chevron-right" type="material" size={24} color={theme.colors.grey3} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Icon name="privacy-tip" type="material" size={24} color={theme.colors.grey1} />
-            <Text style={styles.menuItemText}>Privacy Policy</Text>
-            <Icon name="chevron-right" type="material" size={24} color={theme.colors.grey3} />
-          </TouchableOpacity>
-        </View> */}
-
-
-
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
           <Icon name="logout" type="material" size={24} color={theme.colors.error} />
           <Text style={styles.signOutText}>Sign Out</Text>
@@ -98,12 +70,13 @@ const styles = StyleSheet.create({
   },
   displayName: {
     fontSize: 20,
+    fontWeight: '600',
     color: theme.colors.grey1,
     marginTop: 12,
   },
   email: {
     fontSize: 16,
-    color: theme.colors.grey1,
+    color: theme.colors.grey2,
     marginTop: 4,
   },
   section: {
