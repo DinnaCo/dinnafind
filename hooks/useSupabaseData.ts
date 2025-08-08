@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store';
 import { SupabaseDataService } from '@/services/supabaseDataService';
 import { loginSuccess } from '@/store/slices/authSlice';
-import { setTheme, completeOnboarding } from '@/store/slices/uiSlice';
 import {
+  setTheme,
+  completeOnboarding,
   setMasterNotificationsEnabled,
   setDistanceMiles,
-  setBucketListItems,
-} from '@/store/slices/bucketListSlice';
+} from '@/store/slices/uiSlice';
+import { setBucketListItems } from '@/store/slices/bucketListSlice';
 
 export const useSupabaseData = () => {
   const dispatch = useAppDispatch();
@@ -40,7 +41,7 @@ export const useSupabaseData = () => {
           dispatch(completeOnboarding());
         }
 
-        // Apply bucket list preferences
+        // Apply user preferences
         if (preferences.masterNotificationsEnabled !== undefined) {
           dispatch(setMasterNotificationsEnabled(preferences.masterNotificationsEnabled));
         }

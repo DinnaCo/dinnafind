@@ -18,10 +18,10 @@ import { useAppDispatch, useAppSelector } from '@/store';
 import {
   selectMasterNotificationsEnabled,
   setMasterNotificationsEnabled,
-  setNotificationEnabled,
   selectDistanceMiles,
   setDistanceMiles,
-} from '@/store/slices/bucketListSlice';
+} from '@/store/slices/uiSlice';
+import { setNotificationEnabled } from '@/store/slices/bucketListSlice';
 import { theme } from '@/theme';
 import { BucketListItem } from '@/models/bucket-list';
 
@@ -35,7 +35,7 @@ export function AlertsScreen() {
     notifications: { granted: false },
   });
   const [isPermissionsExpanded, setIsPermissionsExpanded] = useState(false);
-  const [sliderValue, setSliderValue] = useState<number>(distanceMiles);
+  const [sliderValue, setSliderValue] = useState<number>(distanceMiles || 1.25);
   const isUpdatingRef = useRef(false);
 
   useEffect(() => {
@@ -47,8 +47,9 @@ export function AlertsScreen() {
     setPermissions(perms);
     console.log('[AlertsScreen] Current permissions:', perms);
   };
+
   useEffect(() => {
-    setSliderValue(distanceMiles);
+    setSliderValue(distanceMiles || 1.25);
   }, [distanceMiles]);
 
   const handleMasterToggle = async (value: boolean) => {
@@ -160,16 +161,18 @@ export function AlertsScreen() {
         </View>
         {/* Distance Slider */}
         <View style={styles.sliderCard}>
-          <Text style={styles.sliderLabel}>Alert Distance: {sliderValue?.toFixed(2)} miles</Text>
+          <Text style={styles.sliderLabel}>
+            Alert Distance: {(sliderValue || 1.25).toFixed(2)} miles
+          </Text>
           <Slider
-            value={sliderValue}
+            value={sliderValue || 1.25}
             disabled={!masterEnabled} // Disable when master is off
             onValueChange={val => {
               setSliderValue(val);
             }}
             onSlidingComplete={async val => {
               // Prevent redundant updates
-              if (Number(val.toFixed(2)) === Number(distanceMiles.toFixed(2))) {
+              if (Number(val.toFixed(2)) === Number((distanceMiles || 1.25).toFixed(2))) {
                 return;
               }
 
@@ -370,9 +373,10 @@ export function AlertsScreen() {
         )}
 
         {/* Restaurant List */}
-        {!masterEnabled && bucketListItems.length > 0 && (
+        {bucketListItems.length > 0 && !masterEnabled && (
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Your Saved Restaurants</Text>
+
             <View style={styles.restaurantList}>
               {restaurantsWithLocation.map((restaurant: BucketListItem) => {
                 // Defensive: ensure id and venue fields are present and valid
@@ -384,17 +388,35 @@ export function AlertsScreen() {
                 const category =
                   typeof restaurant.venue.category === 'string' ? restaurant.venue.category : '';
 
+                // Use the actual notificationsEnabled state from the bucket list item
+                const isNotificationEnabled = restaurant.notificationsEnabled === true;
+
                 return (
-                  <View key={restaurant.id} style={styles.restaurantCard}>
+                  <View key={restaurant.id} style={[styles.restaurantCard]}>
                     <View style={styles.restaurantInfo}>
-                      <Text style={styles.restaurantName}>{name}</Text>
-                      <Text style={styles.restaurantAddress} numberOfLines={1}>
+                      <Text style={[styles.restaurantName]}>{name}</Text>
+                      <Text
+                        style={[
+                          styles.restaurantAddress,
+                          masterEnabled && { color: theme.colors.grey4 }, // Mute text when master is enabled
+                        ]}
+                        numberOfLines={1}
+                      >
                         {address}
                       </Text>
-                      {category ? <Text style={styles.restaurantCategory}>{category}</Text> : null}
+                      {category ? (
+                        <Text
+                          style={[
+                            styles.restaurantCategory,
+                            masterEnabled && { color: theme.colors.grey4 }, // Mute text when master is enabled
+                          ]}
+                        >
+                          {category}
+                        </Text>
+                      ) : null}
                     </View>
                     <Switch
-                      value={restaurant.notificationsEnabled === true}
+                      value={isNotificationEnabled}
                       disabled={masterEnabled} // Individual toggles are disabled when master is ON
                       onValueChange={async enabled => {
                         dispatch(setNotificationEnabled({ id: restaurant.id as string, enabled }));
@@ -422,8 +444,8 @@ export function AlertsScreen() {
                         }
                       }}
                       trackColor={{
-                        false: theme.colors.grey4,
-                        true: theme.colors.primary,
+                        false: masterEnabled ? theme.colors.grey4 : theme.colors.grey4,
+                        true: masterEnabled ? theme.colors.grey3 : theme.colors.primary,
                       }}
                       thumbColor={Platform.OS === 'android' ? theme.colors.grey5 : undefined}
                     />
@@ -788,5 +810,11 @@ const styles = StyleSheet.create({
     color: theme.colors.background,
     fontWeight: '600',
     fontSize: 14,
+  },
+  masterEnabledNote: {
+    fontSize: 14,
+    color: theme.colors.grey2,
+    marginBottom: 12,
+    textAlign: 'center',
   },
 });

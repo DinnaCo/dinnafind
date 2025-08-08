@@ -36,6 +36,7 @@ export class SupabaseDataService {
    * Load user profile from Supabase
    */
   static async loadUserProfile(userId: string): Promise<UserProfile | null> {
+    console.log('[SupabaseDataService] Loading user profile for user ID:', userId);
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -44,15 +45,16 @@ export class SupabaseDataService {
         .single();
 
       if (error) {
-        console.error('Error loading user profile:', error);
+        console.error('[SupabaseDataService] Error loading user profile:', error);
         return null;
       }
 
       if (!data) {
+        console.log('[SupabaseDataService] No user profile found for user ID:', userId);
         return null;
       }
 
-      return {
+      const userProfile = {
         id: data.id,
         email: data.email,
         displayName: data.display_name,
@@ -61,8 +63,11 @@ export class SupabaseDataService {
         lastLogin: new Date(data.last_login).getTime(),
         preferences: data.preferences || {},
       };
+
+      console.log('[SupabaseDataService] User profile loaded successfully:', userProfile);
+      return userProfile;
     } catch (error) {
-      console.error('Failed to load user profile:', error);
+      console.error('[SupabaseDataService] Failed to load user profile:', error);
       return null;
     }
   }
@@ -71,6 +76,7 @@ export class SupabaseDataService {
    * Load bucket list items from Supabase
    */
   static async loadBucketListItems(userId: string): Promise<BucketListItem[]> {
+    console.log('[SupabaseDataService] Loading bucket list items for user ID:', userId);
     try {
       const { data, error } = await supabase
         .from('bucket_list_items')
@@ -79,15 +85,16 @@ export class SupabaseDataService {
         .order('added_at', { ascending: false });
 
       if (error) {
-        console.error('Error loading bucket list items:', error);
+        console.error('[SupabaseDataService] Error loading bucket list items:', error);
         return [];
       }
 
       if (!data) {
+        console.log('[SupabaseDataService] No bucket list items found for user ID:', userId);
         return [];
       }
 
-      return data.map(
+      const bucketListItems = data.map(
         (item: SupabaseBucketListItem): BucketListItem => ({
           id: item.id,
           venueId: item.venue_id,
@@ -119,8 +126,11 @@ export class SupabaseDataService {
           notificationsEnabled: item.notifications_enabled ?? true,
         })
       );
+
+      console.log('[SupabaseDataService] Loaded', bucketListItems.length, 'bucket list items');
+      return bucketListItems;
     } catch (error) {
-      console.error('Failed to load bucket list items:', error);
+      console.error('[SupabaseDataService] Failed to load bucket list items:', error);
       return [];
     }
   }
@@ -129,6 +139,7 @@ export class SupabaseDataService {
    * Load user preferences from Supabase
    */
   static async loadUserPreferences(userId: string): Promise<Record<string, any>> {
+    console.log('[SupabaseDataService] Loading user preferences for user ID:', userId);
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -137,13 +148,15 @@ export class SupabaseDataService {
         .single();
 
       if (error) {
-        console.error('Error loading user preferences:', error);
+        console.error('[SupabaseDataService] Error loading user preferences:', error);
         return {};
       }
 
-      return data?.preferences || {};
+      const preferences = data?.preferences || {};
+      console.log('[SupabaseDataService] User preferences loaded:', preferences);
+      return preferences;
     } catch (error) {
-      console.error('Failed to load user preferences:', error);
+      console.error('[SupabaseDataService] Failed to load user preferences:', error);
       return {};
     }
   }
@@ -152,11 +165,20 @@ export class SupabaseDataService {
    * Create or update user profile
    */
   static async upsertUserProfile(profile: Partial<UserProfile>): Promise<boolean> {
+    console.log('[SupabaseDataService] Starting upsert user profile for user ID:', profile.id);
     try {
+      // Check if required fields are present
+      if (!profile.id || !profile.email) {
+        console.error(
+          '[SupabaseDataService] Error upserting user profile: Missing required fields (id or email)'
+        );
+        return false;
+      }
+
       const { error } = await supabase.from('user_profiles').upsert(
         {
-          id: profile.id!,
-          email: profile.email!,
+          id: profile.id,
+          email: profile.email,
           display_name: profile.displayName,
           photo_url: profile.photoUrl,
           last_login: new Date().toISOString(),
@@ -168,13 +190,14 @@ export class SupabaseDataService {
       );
 
       if (error) {
-        console.error('Error upserting user profile:', error);
+        console.error('[SupabaseDataService] Error upserting user profile:', error);
         return false;
       }
 
+      console.log('[SupabaseDataService] User profile upserted successfully');
       return true;
     } catch (error) {
-      console.error('Failed to upsert user profile:', error);
+      console.error('[SupabaseDataService] Failed to upsert user profile:', error);
       return false;
     }
   }

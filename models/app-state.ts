@@ -23,6 +23,9 @@ export interface UIState {
   theme: 'light' | 'dark';
   networkStatus: 'online' | 'offline';
   hasCompletedOnboarding: boolean;
+  // User preferences
+  masterNotificationsEnabled: boolean;
+  distanceMiles: number;
 }
 
 /**

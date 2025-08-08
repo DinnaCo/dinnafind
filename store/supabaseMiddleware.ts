@@ -108,13 +108,44 @@ async function handleBucketListSync(action: any, state: RootState, userId: strin
           .eq('venue_id', updatedItem.venueId || updatedItem.venue.id);
         break;
 
+      case 'bucketList/setNotificationEnabled':
+        // Update notification setting for a specific item
+        const { id, enabled } = action.payload;
+        const item = bucketList.items.find(item => item.id === id);
+        if (item) {
+          const venueId = item.venueId || item.venue?.id;
+          if (venueId) {
+            await supabase
+              .from('bucket_list_items')
+              .update({
+                notifications_enabled: enabled,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('user_id', userId)
+              .eq('venue_id', venueId);
+            console.log(`[SupabaseMiddleware] Updated notification setting for item ${id} (venue: ${venueId}) to ${enabled}`);
+          } else {
+            console.error('[SupabaseMiddleware] Could not find venue_id for item:', item);
+          }
+        } else {
+          console.error('[SupabaseMiddleware] Could not find item to update notification setting:', id);
+        }
+        break;
+
       case 'bucketList/remove/fulfilled':
         // Remove bucket list item
-        await supabase
-          .from('bucket_list_items')
-          .delete()
-          .eq('user_id', userId)
-          .eq('venue_id', action.payload);
+        const { itemId, venueId } = action.payload;
+
+        if (venueId) {
+          await supabase
+            .from('bucket_list_items')
+            .delete()
+            .eq('user_id', userId)
+            .eq('venue_id', venueId);
+          console.log(`[SupabaseMiddleware] Deleted bucket list item with venue_id: ${venueId}`);
+        } else {
+          console.error('[SupabaseMiddleware] Could not find venue_id for item:', action.payload);
+        }
         break;
 
       case 'bucketList/markAsVisited/fulfilled':
@@ -130,32 +161,6 @@ async function handleBucketListSync(action: any, state: RootState, userId: strin
           })
           .eq('user_id', userId)
           .eq('venue_id', visitedItem.venueId || visitedItem.venue.id);
-        break;
-
-      case 'bucketList/setMasterNotificationsEnabled':
-        // Update master notifications setting in user preferences
-        await supabase
-          .from('user_profiles')
-          .update({
-            preferences: {
-              masterNotificationsEnabled: action.payload,
-            },
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', userId);
-        break;
-
-      case 'bucketList/setDistanceMiles':
-        // Update distance setting in user preferences
-        await supabase
-          .from('user_profiles')
-          .update({
-            preferences: {
-              distanceMiles: action.payload,
-            },
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', userId);
         break;
     }
   } catch (error) {
@@ -176,6 +181,8 @@ async function handleUISync(action: any, state: RootState, userId: string) {
             theme: ui.theme,
             hasCompletedOnboarding: ui.hasCompletedOnboarding,
             networkStatus: ui.networkStatus,
+            masterNotificationsEnabled: ui.masterNotificationsEnabled,
+            distanceMiles: ui.distanceMiles,
           },
           updated_at: new Date().toISOString(),
         })

@@ -26,56 +26,113 @@ export function AuthScreen() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
-  const { signIn, signUp, user, isAuthenticated } = useAuth();
+  const { signIn, signUp, user, isAuthenticated, createUserProfileIfNeeded } = useAuth();
   const { isInitializing } = useAppInitialization();
   const router = useRouter();
 
   const logo = require('@/assets/images/splash-icon.png');
 
-  // Add debug log
+  console.log(
+    '[AuthScreen] Rendering with mode:',
+    mode,
+    'isAuthenticated:',
+    isAuthenticated,
+    'user:',
+    user?.id
+  );
 
   useEffect(() => {
     if (user) {
+      console.log('[AuthScreen] User authenticated, redirecting to home...');
       router.replace('/');
     }
   }, [router, user]);
 
   const handleSubmit = async () => {
+    console.log('[AuthScreen] Form submitted with mode:', mode, 'email:', email);
+
     if (!email || !password) {
+      console.log('[AuthScreen] Form validation failed - missing fields');
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     setEmailLoading(true);
+    console.log('[AuthScreen] Starting authentication process...');
+
     try {
       const result =
         mode === 'signIn' ? await signIn(email, password) : await signUp(email, password);
 
+      console.log('[AuthScreen] Authentication result:', result);
+
       if (result.error) {
-        Alert.alert('Error', result.error.message);
+        console.log('[AuthScreen] Authentication error:', result.error.message);
+        Alert.alert('Error', result.error.message || 'An error occurred');
       } else if (mode === 'signUp') {
+        console.log('[AuthScreen] Signup successful, showing verification message');
         Alert.alert('Success!', 'Please check your email to verify your account.');
+      } else {
+        console.log('[AuthScreen] Signin successful');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      console.error('[AuthScreen] Authentication exception:', error);
+      Alert.alert('Error', error.message || 'An error occurred');
     } finally {
       setEmailLoading(false);
+      console.log('[AuthScreen] Authentication process complete');
     }
   };
 
   const handleGoogleSignIn = async () => {
+    console.log('[AuthScreen] Google signin initiated');
     setGoogleLoading(true);
     try {
       const result = await signInWithGoogle();
+      console.log('[AuthScreen] Google signin result:', result);
+
       if (!result.success) {
+        console.log('[AuthScreen] Google signin failed:', result.error);
         Alert.alert('Sign In Failed', result.error || 'Unknown error');
+      } else {
+        console.log('[AuthScreen] Google signin successful');
       }
     } catch (error: any) {
+      console.error('[AuthScreen] Google signin exception:', error);
       Alert.alert('Error', error.message);
     } finally {
       setGoogleLoading(false);
+      console.log('[AuthScreen] Google signin process complete');
     }
   };
+
+  const handleModeSwitch = () => {
+    const newMode = mode === 'signIn' ? 'signUp' : 'signIn';
+    console.log('[AuthScreen] Switching mode from', mode, 'to', newMode);
+    setMode(newMode);
+  };
+
+  // Method to handle email confirmation and user profile creation
+  const handleEmailConfirmation = async () => {
+    console.log('[AuthScreen] Handling email confirmation...');
+    try {
+      // Check if user is authenticated and confirmed
+      if (user && user.email_confirmed_at) {
+        console.log('[AuthScreen] User email confirmed, creating user profile...');
+        await createUserProfileIfNeeded(user);
+      }
+    } catch (error) {
+      console.error('[AuthScreen] Error handling email confirmation:', error);
+    }
+  };
+
+  // Check for email confirmation on mount and when user changes
+  useEffect(() => {
+    if (user && user.email_confirmed_at) {
+      console.log('[AuthScreen] User email confirmed, triggering profile creation...');
+      handleEmailConfirmation();
+    }
+  }, [user]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -136,7 +193,7 @@ export function AuthScreen() {
 
             <TouchableOpacity
               style={styles.switchMode}
-              onPress={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}
+              onPress={handleModeSwitch}
               disabled={emailLoading || googleLoading || (isAuthenticated && isInitializing)}
             >
               <Text style={styles.switchModeText}>
