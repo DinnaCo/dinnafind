@@ -1,6 +1,5 @@
 import type React from 'react';
-import { useEffect, useState } from 'react';
-import * as Location from 'expo-location';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -17,8 +16,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-import { foursquareV3Service } from '@/api/foursquareV3';
-import { type Coordinates } from '@/models/venue';
+import { foursquareService } from '@/api/foursquare';
+import { type Coordinates, type Venue } from '@/models/venue';
+import { FoursquareCategory } from '@/config/foursquare';
 import { useGeolocation } from '@/hooks/useGeolocation';
 
 // Austin coordinates (default location)
@@ -32,48 +32,34 @@ const DEFAULT_ICON = require('@/assets/images/default_88.png');
 export const SearchScreen: React.FC = () => {
   const location = useGeolocation();
 
-  // Austin coordinates (default location)
-  const currentCoordinates: Coordinates = {
-    latitude: location.coordinates?.latitude || DEFAULT_COORDINATES.latitude,
-    longitude: location.coordinates?.longitude || DEFAULT_COORDINATES.longitude,
-  };
-
-  const [searchQuery, setSearchQuery] = useState<string>('Restaurants');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [venues, setVenues] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [locationRetrieved, setLocationRetrieved] = useState<boolean>(true);
   const [loaded, setLoaded] = useState<boolean>(false);
 
   // Search venues function - similar to the API test screen
-  const searchVenues = async (query: string) => {
-    if (!query.trim()) {
-      return;
-    }
+  const searchVenues = useCallback(
+    async (query: string) => {
+      const currentCoordinates: Coordinates = {
+        latitude: location.coordinates?.latitude || DEFAULT_COORDINATES.latitude,
+        longitude: location.coordinates?.longitude || DEFAULT_COORDINATES.longitude,
+      };
 
-    setLoading(true);
-    setLoaded(false);
+      setLoaded(false);
 
-    try {
-      const data = await foursquareV3Service.searchNearbyVenues(
-        currentCoordinates,
-        query,
-        undefined,
-        50000,
-        40
-      );
+      try {
+        const data = await foursquareService.searchNearbyVenues(
+          currentCoordinates,
+          query,
+          [FoursquareCategory.Food], // Use the category ID for food
+          50000,
+          40
+        );
 
-      // Transform the results to match the expected format
-      const transformedVenues = data.results.map(
-        (venue: {
-          fsq_id: any;
-          name: any;
-          categories: any;
-          location: { formatted_address: any; address: any; locality: any; region: any };
-          geocodes: { main: { latitude: any; longitude: any } };
-        }) => {
+        // Transform the results to match the expected format
+        const transformedVenues = data.results.map((venue: Venue) => {
           // Create a venue object that matches the structure expected by renderItem
           return {
-            id: venue.fsq_id,
+            id: venue.fsq_id || venue.id,
             name: venue.name,
             categories: venue.categories || [
               {
@@ -87,27 +73,27 @@ export const SearchScreen: React.FC = () => {
             location: {
               formattedAddress:
                 venue.location?.formatted_address ||
+                venue.location?.formattedAddress ||
                 [venue.location?.address, venue.location?.locality, venue.location?.region]
                   .filter(Boolean)
                   .join(', '),
-              lat: venue.geocodes?.main?.latitude,
-              lng: venue.geocodes?.main?.longitude,
+              lat: venue.geocodes?.main?.latitude || venue.location?.lat,
+              lng: venue.geocodes?.main?.longitude || venue.location?.lng,
             },
-            referralId: venue.fsq_id, // Required for keyExtractor
+            referralId: venue.fsq_id || venue.id, // Required for keyExtractor
           };
-        }
-      );
+        });
 
-      setVenues(transformedVenues);
-      setLoaded(true);
-    } catch (err: any) {
-      console.error('Error fetching venues:', err);
-      setVenues([]);
-      setLoaded(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+        setVenues(transformedVenues);
+        setLoaded(true);
+      } catch (err: any) {
+        console.error('Error fetching venues:', err);
+        setVenues([]);
+        setLoaded(true);
+      }
+    },
+    [location.coordinates]
+  );
 
   // Search handler - called when search input changes
   const searchHandler = (value: string) => {
@@ -118,8 +104,9 @@ export const SearchScreen: React.FC = () => {
 
   // Initial search on component mount
   useEffect(() => {
-    searchVenues(searchQuery);
-  }, [searchQuery]);
+    // Perform a default search when the component mounts
+    searchVenues('restaurants'); // You can change 'restaurants' to any default query
+  }, [searchVenues]);
 
   // Key extractor for the FlatList
   const keyExtractor = (item: any, index: number) => {
@@ -170,35 +157,25 @@ export const SearchScreen: React.FC = () => {
 
   // Render the restaurant list based on state
   const renderRestaurantList = () => {
-    switch (`${locationRetrieved}|${loaded}`) {
-      case 'true|true':
-        return (
-          <View style={styles.listContainer}>
-            <FlatList
-              contentContainerStyle={styles.flatListContent}
-              data={venues}
-              keyExtractor={keyExtractor}
-              renderItem={renderItem}
-            />
-          </View>
-        );
-      case 'false|false':
-        return (
-          <View style={styles.centerContainer}>
-            <Text style={styles.statusText}>Retrieving Location</Text>
-            <ActivityIndicator color="#FF4500" size="large" style={styles.loader} />
-          </View>
-        );
-      case 'true|false':
-        return (
-          <View style={styles.centerContainer}>
-            <Text style={styles.statusText}>Loading Restaurants and Venues</Text>
-            <ActivityIndicator color="#FF4500" size="large" style={styles.loader} />
-          </View>
-        );
-      default:
-        return null;
+    if (loaded) {
+      return (
+        <View style={styles.listContainer}>
+          <FlatList
+            contentContainerStyle={styles.flatListContent}
+            data={venues}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+          />
+        </View>
+      );
     }
+
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.statusText}>Loading Restaurants and Venues</Text>
+        <ActivityIndicator color="#FF4500" size="large" style={styles.loader} />
+      </View>
+    );
   };
 
   return (
