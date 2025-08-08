@@ -1,21 +1,13 @@
 import React from 'react';
 import { View, Text, Button, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { clearDeferredDeepLink } from '@/hooks/useDeferredDeepLink';
+import { clearAllDeepLinkStorage } from '@/hooks/useDeferredDeepLink';
 
 export function DeepLinkDebugPanel() {
   const checkAndClearAll = async () => {
     try {
-      // Get all keys
-      const keys = await AsyncStorage.getAllKeys();
-      const deepLinkKeys = keys.filter(key => key.includes('deeplink') || key.includes('deferred'));
-
-      if (deepLinkKeys.length > 0) {
-        await AsyncStorage.multiRemove(deepLinkKeys);
-        Alert.alert('Cleared', `Removed ${deepLinkKeys.length} deep link entries`);
-      } else {
-        Alert.alert('No Deep Links', 'No stored deep links found');
-      }
+      await clearAllDeepLinkStorage();
+      Alert.alert('Cleared', 'All deep link storage cleared');
     } catch (error) {
       Alert.alert('Error', 'Failed to clear deep links');
     }

@@ -12,14 +12,14 @@ export function useSimpleDeferredLink(onDeepLink: (url: string) => void) {
     const checkForStoredLink = async () => {
       try {
         const storedLink = await AsyncStorage.getItem(SIMPLE_DEFERRED_LINK_KEY);
-        
+
         if (storedLink) {
           console.log('[SimpleDeferredLink] Found stored link:', storedLink);
-          
-          // Clear the stored link
+
+          // Clear the stored link immediately to prevent reprocessing
           await AsyncStorage.removeItem(SIMPLE_DEFERRED_LINK_KEY);
-          
-          // Handle the link after a small delay
+
+          // Handle the link after a small delay to ensure clearing completes
           setTimeout(() => {
             onDeepLink(storedLink);
           }, 1500);
@@ -28,7 +28,7 @@ export function useSimpleDeferredLink(onDeepLink: (url: string) => void) {
         console.error('[SimpleDeferredLink] Error:', error);
       }
     };
-    
+
     checkForStoredLink();
   }, [onDeepLink]);
 }

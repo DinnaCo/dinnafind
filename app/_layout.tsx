@@ -1,5 +1,6 @@
 import React from 'react';
 import {} from 'react-native';
+// Run once on app start
 
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -11,8 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { store, persistor } from '@/hooks/redux';
-import { useDeferredDeepLink, parseDeepLink } from '@/hooks/useDeferredDeepLink';
-import { useSimpleDeferredLink } from '@/hooks/useSimpleDeferredLink';
+import { useDeepLinkOnce, parseDeepLink, storePendingDeepLink } from '@/hooks/useDeepLinkOnce';
 import { useAppInitialization } from '@/hooks/useAppInitialization';
 import { AppErrorBoundary } from '@/components/common/AppErrorBoundary';
 import { LoadingScreen } from '@/components/screens/LoadingScreen';
@@ -40,27 +40,70 @@ function RootLayoutContent() {
 
   const router = useRouter();
 
-  // Helper function to store deep link for later processing
-  const storeDeepLinkForLater = React.useCallback(async (url: string) => {
-    try {
-      const deepLinkData = {
-        url,
-        timestamp: Date.now(),
-        processed: false,
-      };
-      await AsyncStorage.setItem('dinnafind_pending_deep_link', JSON.stringify(deepLinkData));
-      console.log('[DeepLink] Stored pending deep link for later processing');
-    } catch (error) {
-      console.error('[DeepLink] Error storing pending deep link:', error);
-    }
-  }, []);
+  // Track if we've already processed a pending link to avoid duplicates
+  const pendingLinkProcessed = React.useRef(false);
+  const waitingForInit = React.useRef<string | null>(null);
 
-  // Handle deep links
+  // Immediately check for pending deep links when user becomes authenticated
+  React.useEffect(() => {
+    const processPendingLinkImmediately = async () => {
+      // Only process if: authenticated, app initialized, and haven't processed yet
+      if (isAuthenticated && user && !isInitializing && !pendingLinkProcessed.current) {
+        try {
+          // Check for any pending deep link from before authentication
+          const pendingLink = await AsyncStorage.getItem('dinnafind_pending_deep_link');
+          
+          if (pendingLink) {
+            pendingLinkProcessed.current = true;
+            console.log('[DeepLink] User authenticated, processing pending link immediately:', pendingLink);
+            
+            // Clear it immediately
+            await AsyncStorage.removeItem('dinnafind_pending_deep_link');
+            
+            // Process the link (either string or DeepLinkData)
+            let url: string;
+            try {
+              const data = JSON.parse(pendingLink);
+              url = data.url || pendingLink;
+            } catch {
+              url = pendingLink; // It's a plain string
+            }
+            
+            // Navigate immediately without delay
+            const parsed = parseDeepLink(url);
+            
+            if (parsed?.isRestaurant && parsed.restaurantId) {
+              const shouldAutoSave = parsed.queryParams?.autoSave === 'true';
+              const detailUrl = `/detail?venueId=${parsed.restaurantId}${
+                shouldAutoSave ? '&autoSave=true' : ''
+              }` as const;
+              
+              console.log('[DeepLink] Immediate navigation to restaurant:', detailUrl);
+              router.push(detailUrl);
+            } else if (parsed?.isBucketList) {
+              console.log('[DeepLink] Immediate navigation to bucket list');
+              router.push('/(tabs)/bucket-list');
+            } else if (parsed?.isAuth) {
+              console.log('[DeepLink] Immediate navigation to auth callback');
+              router.push('/auth-callback');
+            }
+          }
+        } catch (error) {
+          console.error('[DeepLink] Error processing pending link:', error);
+        }
+      }
+    };
+
+    processPendingLinkImmediately();
+  }, [isAuthenticated, user, isInitializing, router]);
+
+  // Handle deep links - clean and simple
   const handleDeepLink = React.useCallback(
     (url: string) => {
-      console.log('[DeepLink] Handling URL:', url);
-      const parsed = parseDeepLink(url);
+      console.log('[DeepLink] Processing URL:', url);
+      console.log('[DeepLink] Auth state:', { isAuthenticated, user: !!user, isInitializing });
 
+      const parsed = parseDeepLink(url);
       if (!parsed) {
         console.log('[DeepLink] Failed to parse URL');
         return;
@@ -68,7 +111,17 @@ function RootLayoutContent() {
 
       console.log('[DeepLink] Parsed:', parsed);
 
-      // Add delay to ensure navigation stack is ready
+      // Don't process deep links while app is still initializing
+      // This prevents incorrect auth redirects
+      if (isInitializing) {
+        console.log('[DeepLink] App still initializing, storing for later');
+        waitingForInit.current = url;
+        return;
+      }
+
+      // Minimal delay for navigation to ensure stack is ready
+      const navigationDelay = 100;
+      
       setTimeout(() => {
         // Navigate based on the deep link
         if (parsed.isRestaurant && parsed.restaurantId) {
@@ -79,7 +132,7 @@ function RootLayoutContent() {
           if (!isAuthenticated || !user) {
             console.log('[DeepLink] User not authenticated, redirecting to auth');
             // Store the deep link for later processing after authentication
-            storeDeepLinkForLater(url);
+            storePendingDeepLink(url);
             router.push('/auth');
             return;
           }
@@ -101,49 +154,27 @@ function RootLayoutContent() {
           console.log('[DeepLink] Navigating to auth callback');
           router.push('/auth-callback');
         }
-      }, 2000);
+      }, navigationDelay);
     },
-    [isAuthenticated, user, router, storeDeepLinkForLater]
+    [isAuthenticated, user, router, isInitializing]
   );
 
-  // Process pending deep links after authentication
+  // Process deep link that was waiting for initialization
   React.useEffect(() => {
-    const processPendingDeepLink = async () => {
-      if (isAuthenticated && user) {
-        try {
-          const pendingDeepLinkData = await AsyncStorage.getItem('dinnafind_pending_deep_link');
-          if (pendingDeepLinkData) {
-            const data = JSON.parse(pendingDeepLinkData);
-            const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    if (!isInitializing && waitingForInit.current) {
+      const url = waitingForInit.current;
+      waitingForInit.current = null;
+      console.log('[DeepLink] App initialized, processing waiting link:', url);
+      // Small delay to ensure auth state is settled
+      setTimeout(() => {
+        handleDeepLink(url);
+      }, 100);
+    }
+  }, [isInitializing, handleDeepLink]);
 
-            // Only process if the link is less than 1 hour old
-            if (data.timestamp > oneHourAgo && !data.processed) {
-              console.log('[DeepLink] Processing pending deep link:', data.url);
-
-              // Clear the pending deep link
-              await AsyncStorage.removeItem('dinnafind_pending_deep_link');
-
-              // Process the deep link
-              handleDeepLink(data.url);
-            } else {
-              // Clear old pending deep link
-              await AsyncStorage.removeItem('dinnafind_pending_deep_link');
-            }
-          }
-        } catch (error) {
-          console.error('[DeepLink] Error processing pending deep link:', error);
-        }
-      }
-    };
-
-    processPendingDeepLink();
-  }, [isAuthenticated, user, handleDeepLink]);
-
-  // Set up deferred deep link handling
-  useDeferredDeepLink(handleDeepLink);
-
-  // Also check for simple deferred links (TestFlight testing)
-  useSimpleDeferredLink(handleDeepLink);
+  // Use the simple deep link hook
+  // Pass false if app is still initializing to prevent premature processing
+  useDeepLinkOnce(handleDeepLink, !isInitializing);
 
   // Handle notification responses (user taps notification)
   // Navigates to the venue detail corresponding to the geofenced bucket list item

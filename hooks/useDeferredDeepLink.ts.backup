@@ -11,6 +11,24 @@ export interface DeferredLinkData {
 }
 
 /**
+ * Clear all deep link storage keys
+ */
+export async function clearAllDeepLinkStorage() {
+  try {
+    const keys = [
+      'dinnafind_deferred_deeplink',
+      'dinnafind_pending_deep_link',
+      'dinnafind_simple_deferred_link'
+    ];
+
+    await Promise.all(keys.map(key => AsyncStorage.removeItem(key)));
+    console.log('[DeepLink] Cleared all deep link storage');
+  } catch (error) {
+    console.error('[DeepLink] Error clearing deep link storage:', error);
+  }
+}
+
+/**
  * Hook to handle deferred deep links
  */
 export function useDeferredDeepLink(onDeepLink: (url: string) => void) {
@@ -26,13 +44,10 @@ export function useDeferredDeepLink(onDeepLink: (url: string) => void) {
           const oneHourAgo = Date.now() - 60 * 60 * 1000;
 
           if (data.timestamp > oneHourAgo && !data.processed) {
-            console.log('Found deferred deep link:', data.url);
+            console.log('[DeepLink] Found deferred deep link:', data.url);
 
-            // Mark as processed
-            await AsyncStorage.setItem(
-              DEFERRED_LINK_KEY,
-              JSON.stringify({ ...data, processed: true })
-            );
+            // Clear the deferred link immediately to prevent reprocessing
+            await AsyncStorage.removeItem(DEFERRED_LINK_KEY);
 
             // Handle the deferred link
             onDeepLink(data.url);
@@ -42,22 +57,32 @@ export function useDeferredDeepLink(onDeepLink: (url: string) => void) {
           }
         }
       } catch (error) {
-        console.error('Error checking deferred link:', error);
+        console.error('[DeepLink] Error checking deferred link:', error);
       }
     };
     checkForDeferredLink();
 
     // Listen for incoming links while app is open
     const subscription = Linking.addEventListener('url', ({ url }) => {
-      console.log('Received deep link:', url);
-      onDeepLink(url);
+      console.log('[DeepLink] Received deep link:', url);
+      // Clear any existing deep link storage when a new link is received
+      clearAllDeepLinkStorage();
+      // Add a small delay to ensure clearing completes before processing
+      setTimeout(() => {
+        onDeepLink(url);
+      }, 100);
     });
 
     // Check if app was opened with a link
     Linking.getInitialURL().then(url => {
       if (url) {
-        console.log('App opened with URL:', url);
-        onDeepLink(url);
+        console.log('[DeepLink] App opened with URL:', url);
+        // Clear any existing deep link storage when app opens with a link
+        clearAllDeepLinkStorage();
+        // Add a small delay to ensure clearing completes before processing
+        setTimeout(() => {
+          onDeepLink(url);
+        }, 100);
       }
     });
 
@@ -77,7 +102,7 @@ export async function simulateDeferredDeepLink(url: string) {
   };
 
   await AsyncStorage.setItem(DEFERRED_LINK_KEY, JSON.stringify(deferredLinkData));
-  console.log('Deferred deep link stored:', url);
+  console.log('[DeepLink] Deferred deep link stored:', url);
 }
 
 /**
@@ -85,7 +110,7 @@ export async function simulateDeferredDeepLink(url: string) {
  */
 export async function clearDeferredDeepLink() {
   await AsyncStorage.removeItem(DEFERRED_LINK_KEY);
-  console.log('Deferred deep link cleared');
+  console.log('[DeepLink] Deferred deep link cleared');
 }
 
 /**
