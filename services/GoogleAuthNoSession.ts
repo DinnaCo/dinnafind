@@ -22,6 +22,7 @@ export const signInWithGoogle = async () => {
         queryParams: {
           prompt: 'select_account',
           access_type: 'offline',
+          scope: 'openid email profile',
         },
         skipBrowserRedirect: true,
       },
