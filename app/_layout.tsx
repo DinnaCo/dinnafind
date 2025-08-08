@@ -13,6 +13,7 @@ import { useDeferredDeepLink, parseDeepLink } from '@/hooks/useDeferredDeepLink'
 import { useSimpleDeferredLink } from '@/hooks/useSimpleDeferredLink';
 import { useAppInitialization } from '@/hooks/useAppInitialization';
 import { AppErrorBoundary } from '@/components/common/AppErrorBoundary';
+import LoadingScreen from '@/components/screens/LoadingScreen';
 
 export default function RootLayout() {
   return (
@@ -29,10 +30,10 @@ export default function RootLayout() {
 }
 
 function RootLayoutContent() {
-  const router = useRouter();
+  // Initialize app (geofencing, permissions, etc.) - MUST be called at top level
+  const { isInitializing, initializationStep } = useAppInitialization();
 
-  // Initialize app (geofencing, permissions, etc.)
-  useAppInitialization();
+  const router = useRouter();
 
   // Handle deep links
   const handleDeepLink = (url: string) => {
@@ -122,6 +123,11 @@ function RootLayoutContent() {
       subscription.remove();
     };
   }, [router]);
+
+  // Show loading screen during initialization
+  if (isInitializing) {
+    return <LoadingScreen message={initializationStep} />;
+  }
 
   return (
     <>

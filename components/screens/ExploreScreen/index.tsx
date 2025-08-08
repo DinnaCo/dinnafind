@@ -11,7 +11,7 @@ import { LocationPermissionRequest } from '@/components/common/LocationPermissio
 import { LocationStatus } from '@/components/common/LocationStatus';
 
 export const ExploreScreen: React.FC = () => {
-  const { coordinates, permissionGranted, requestLocation } = useGeolocation();
+  const { coordinates, permissionGranted, permissionChecked, requestLocation } = useGeolocation();
   const bucketListItems = useAppSelector(selectBucketListItems) as BucketListItem[];
   const dispatch = useAppDispatch();
 
@@ -25,7 +25,8 @@ export const ExploreScreen: React.FC = () => {
     console.log('🗺️ ExploreScreen: Bucket list items count:', bucketListItems.length);
     console.log('🗺️ ExploreScreen: Coordinates:', coordinates);
     console.log('🗺️ ExploreScreen: Permission granted:', permissionGranted);
-  }, [bucketListItems, coordinates, permissionGranted]);
+    console.log('🗺️ ExploreScreen: Permission checked:', permissionChecked);
+  }, [bucketListItems, coordinates, permissionGranted, permissionChecked]);
 
   const initialRegion = coordinates
     ? {
@@ -102,39 +103,61 @@ export const ExploreScreen: React.FC = () => {
     return null;
   };
 
-  // Show location permission request if permission not granted
-  if (!permissionGranted) {
+  // Show location permission request only if permission is not granted AND we've checked permissions
+  if (!permissionGranted && permissionChecked) {
     return <LocationPermissionRequest onRequestLocation={requestLocation} />;
+  }
+
+  // Show loading state while checking permissions
+  if (!permissionChecked) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons color="#CCCCCC" name="map-outline" size={64} />
+          <Text style={styles.title}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          initialRegion={initialRegion}
-          showsUserLocation={!!coordinates && permissionGranted}
-          showsMyLocationButton={!!coordinates && permissionGranted}
-        >
-          {/* User location marker (optional, since showsUserLocation is true) */}
-          {coordinates && <Marker coordinate={coordinates} title="You are here" pinColor="blue" />}
-          {/* Bucket list markers */}
-          {bucketListItems.map((item: BucketListItem) => {
-            const itemCoordinates = getItemCoordinates(item);
-            console.log(`🗺️ ExploreScreen: Item ${item.venue.name} coordinates:`, itemCoordinates);
+        {coordinates ? (
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            initialRegion={initialRegion}
+            showsUserLocation={true}
+            showsMyLocationButton={true}
+          >
+            {/* User location marker (optional, since showsUserLocation is true) */}
+            <Marker coordinate={coordinates} title="You are here" pinColor="blue" />
+            {/* Bucket list markers */}
+            {bucketListItems.map((item: BucketListItem) => {
+              const itemCoordinates = getItemCoordinates(item);
+              console.log(
+                `🗺️ ExploreScreen: Item ${item.venue.name} coordinates:`,
+                itemCoordinates
+              );
 
-            return itemCoordinates ? (
-              <Marker
-                key={item.id}
-                coordinate={itemCoordinates}
-                title={item.venue.name}
-                description={item.venue.address || item.venue.location?.formattedAddress}
-                pinColor="red"
-              />
-            ) : null;
-          })}
-        </MapView>
+              return itemCoordinates ? (
+                <Marker
+                  key={item.id}
+                  coordinate={itemCoordinates}
+                  title={item.venue.name}
+                  description={item.venue.address || item.venue.location?.formattedAddress}
+                  pinColor="red"
+                />
+              ) : null;
+            })}
+          </MapView>
+        ) : (
+          <View style={styles.mapPlaceholder}>
+            <Ionicons color="#CCCCCC" name="map-outline" size={48} />
+            <Text style={styles.mapPlaceholderText}>Loading map...</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.content}>
@@ -200,6 +223,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+  },
+  mapPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+  },
+  mapPlaceholderText: {
+    fontSize: 18,
+    color: '#666666',
+    marginTop: 10,
   },
 });
 
