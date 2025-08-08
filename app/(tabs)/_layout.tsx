@@ -24,23 +24,6 @@ const TabBadge: React.FC<{ count: number }> = ({ count }) => {
 export default function TabLayout() {
   const { user, loading } = useAuth();
   const bucketListCount = useAppSelector(state => state.bucketList.items.length);
-  const [activeGeofencesCount, setActiveGeofencesCount] = React.useState(0);
-
-  React.useEffect(() => {
-    // Get initial count of active geofences
-    import('@/services/GeofencingService').then(async ({ default: service }) => {
-      // Initialize service first if needed
-      await service.initialize();
-      const activeCount = service.getActiveGeofences().length;
-      setActiveGeofencesCount(activeCount);
-    });
-  }, []);
-
-  // Update active geofences count when bucket list changes
-  React.useEffect(() => {
-    const activeCount = bucketListCount; // For now, use bucket list count
-    setActiveGeofencesCount(activeCount);
-  }, [bucketListCount]);
 
   // Show loading spinner while checking auth
   if (loading) {
@@ -109,10 +92,7 @@ export default function TabLayout() {
         options={{
           title: 'Alerts',
           tabBarIcon: ({ color, size }) => (
-            <View style={styles.tabIconContainer}>
-              <Icon color={color} name="notifications" size={size} type="material" />
-              <TabBadge count={activeGeofencesCount} />
-            </View>
+            <Icon color={color} name="notifications" size={size} type="material" />
           ),
         }}
       />
