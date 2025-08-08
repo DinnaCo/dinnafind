@@ -44,20 +44,16 @@ export function useAppInitialization() {
     setInitializationStep('Loading user data...');
 
     try {
-      // Only load bucket list items from database if local state is empty
-      // This prevents overwriting local deletions on app refresh/login
-      if (bucketListItems.length === 0) {
-        const bucketListItems = await SupabaseDataService.loadBucketListItems(userId);
-        if (bucketListItems.length > 0) {
-          dispatch(setBucketListItems(bucketListItems));
-          console.log(`[AppInit] Loaded ${bucketListItems.length} bucket list items from database`);
-        } else {
-          console.log('[AppInit] No bucket list items found in database');
-        }
+      // Always load bucket list items from database for the current user
+      // This ensures we get the correct data for the authenticated user
+      const bucketListItems = await SupabaseDataService.loadBucketListItems(userId);
+      if (bucketListItems.length > 0) {
+        dispatch(setBucketListItems(bucketListItems));
+        console.log(`[AppInit] Loaded ${bucketListItems.length} bucket list items from database`);
       } else {
-        console.log(
-          `[AppInit] Skipping bucket list load - ${bucketListItems.length} items already in local state`
-        );
+        // Clear any existing bucket list items if none found for this user
+        dispatch(setBucketListItems([]));
+        console.log('[AppInit] No bucket list items found in database, cleared local state');
       }
 
       // Load user preferences from database
