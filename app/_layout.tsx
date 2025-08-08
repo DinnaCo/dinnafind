@@ -1,9 +1,11 @@
+import React from 'react';
 import {} from 'react-native';
 
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
+import * as Notifications from 'expo-notifications';
 
 import { AuthProvider } from '@/contexts/AuthContext';
 import { store } from '@/hooks/redux';
@@ -76,6 +78,50 @@ function RootLayoutContent() {
 
   // Also check for simple deferred links (TestFlight testing)
   useSimpleDeferredLink(handleDeepLink);
+
+  // Handle notification responses (user taps notification)
+  // Navigates to the venue detail corresponding to the geofenced bucket list item
+  React.useEffect(() => {
+    const navigateFromGeofenceNotification = (data: any) => {
+      try {
+        const geofenceId = data?.geofenceId as string | undefined;
+        if (!geofenceId) return;
+
+        const state = store.getState();
+        const items = state.bucketList?.items || [];
+        const matchedItem = items.find((it: any) => it.id === geofenceId);
+
+        // Prefer venueId from notification payload if provided; otherwise derive from store
+        const rawVenueId = (data?.venueId as string | undefined) || matchedItem?.venue?.id;
+        if (rawVenueId) {
+          const venueId = String(rawVenueId).split('?')[0];
+          router.push({ pathname: '/detail', params: { venueId } });
+        } else {
+          // Fallback to bucket list tab if we cannot resolve the venue
+          router.push('/(tabs)/bucket-list');
+        }
+      } catch (error) {
+        console.error('[Notifications] Error handling geofence notification response', error);
+      }
+    };
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response?.notification?.request?.content?.data as any;
+      navigateFromGeofenceNotification(data);
+    });
+
+    // Handle cold start when the app is opened by tapping a notification
+    Notifications.getLastNotificationResponseAsync().then(response => {
+      const data = response?.notification?.request?.content?.data as any;
+      if (data) {
+        navigateFromGeofenceNotification(data);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [router]);
 
   return (
     <>

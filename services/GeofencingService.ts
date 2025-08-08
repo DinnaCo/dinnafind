@@ -13,6 +13,8 @@ type Geofence = {
   latitude: number;
   longitude: number;
   radius: number;
+  // Optional Foursquare venue id for direct navigation
+  venueId?: string;
 };
 
 // Initialize notification permissions
@@ -48,14 +50,16 @@ TaskManager.defineTask(
       if (eventType === Location.GeofencingEventType.Enter) {
         console.log('[GeofencingService] ENTER event triggered for region:', region.identifier);
 
-        // Get restaurant name from stored geofences
+        // Get restaurant name and venueId from stored geofences
         const storedData = await AsyncStorage.getItem(STORAGE_KEY);
         let restaurantName = region.identifier;
+        let venueId: string | undefined = undefined;
         if (storedData) {
           const geofences: Geofence[] = JSON.parse(storedData);
           const geofence = geofences.find(g => g.id === region.identifier);
           if (geofence) {
             restaurantName = geofence.name;
+            venueId = geofence.venueId;
           }
         }
 
@@ -70,9 +74,9 @@ TaskManager.defineTask(
           // Send actual notification
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: 'DinnaFind! 🍽️',
+              title: 'DinnaFind!',
               body: `You're near ${restaurantName}. Time to check it out!`,
-              data: { geofenceId: region.identifier, restaurantName },
+              data: { geofenceId: region.identifier, restaurantName, venueId },
               sound: true,
             },
             trigger: null, // Send immediately
@@ -152,7 +156,7 @@ class GeofencingService {
       // Stop existing geofencing task
       try {
         await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
-      } catch (stopError) {
+      } catch {
         // It's ok if there's no task to stop
         console.log('[GeofencingService] No existing geofencing task to stop');
       }
@@ -174,8 +178,8 @@ class GeofencingService {
       console.log('[GeofencingService] Starting geofencing with regions:', regions);
       await Location.startGeofencingAsync(GEOFENCE_TASK_NAME, regions);
       console.log('[GeofencingService] Geofencing started successfully');
-    } catch (error) {
-      console.error('[GeofencingService] Failed to update geofences:', error);
+    } catch (e) {
+      console.error('[GeofencingService] Failed to update geofences:', e);
       // Don't throw - just log the error
     }
   }
@@ -239,7 +243,7 @@ class GeofencingService {
     try {
       await Location.stopGeofencingAsync(GEOFENCE_TASK_NAME);
       console.log('[GeofencingService] Stopped geofencing task');
-    } catch (error) {
+    } catch {
       console.log('[GeofencingService] No active geofences to stop');
     }
   }
