@@ -18,16 +18,29 @@ if (typeof process !== 'undefined' && process.env) {
 
 // Read from Expo Constants (mobile) or process.env (web/tests)
 const getEnvVar = (key: string, defaultValue: string = ''): string => {
-  // Try Expo Constants first (for mobile apps)
+  // Try process.env first (includes .env file variables with EXPO_PUBLIC_ prefix)
+  if (processEnv?.[key]) {
+    console.log(`✅ Found ${key} in process.env:`, processEnv[key]);
+    return processEnv[key];
+  }
+
+  // Try Expo Constants (for mobile apps)
   if (Constants.expoConfig?.extra?.[key]) {
     console.log(`✅ Found ${key} in Constants.expoConfig.extra:`, Constants.expoConfig.extra[key]);
     return Constants.expoConfig.extra[key];
   }
 
   // Also try manifest for older Expo versions
-  if (Constants.manifest?.extra?.[key]) {
-    console.log(`✅ Found ${key} in Constants.manifest.extra:`, Constants.manifest.extra[key]);
-    return Constants.manifest.extra[key];
+  if (
+    Constants.manifest &&
+    typeof Constants.manifest === 'object' &&
+    'extra' in Constants.manifest
+  ) {
+    const manifestExtra = (Constants.manifest as any).extra;
+    if (manifestExtra && manifestExtra[key]) {
+      console.log(`✅ Found ${key} in Constants.manifest.extra:`, manifestExtra[key]);
+      return manifestExtra[key];
+    }
   }
 
   // Try manifest2 for newer Expo versions
@@ -39,12 +52,6 @@ const getEnvVar = (key: string, defaultValue: string = ''): string => {
     return Constants.manifest2.extra.expoClient.extra[key];
   }
 
-  // Try process.env (for web/tests)
-  if (processEnv?.[key]) {
-    console.log(`✅ Found ${key} in process.env:`, processEnv[key]);
-    return processEnv[key];
-  }
-
   // For web environment, also check window object
   if (typeof window !== 'undefined' && (window as any).ENV && (window as any).ENV[key]) {
     console.log(`✅ Found ${key} in window.ENV:`, (window as any).ENV[key]);
@@ -52,13 +59,15 @@ const getEnvVar = (key: string, defaultValue: string = ''): string => {
   }
 
   // Return default
-
   return defaultValue;
 };
 
-export const FOURSQUARE_CLIENT_ID = getEnvVar('FOURSQUARE_CLIENT_ID', 'dev-client-id');
-export const FOURSQUARE_CLIENT_SECRET = getEnvVar('FOURSQUARE_CLIENT_SECRET', 'dev-client-secret');
-export const FOURSQUARE_API_KEY = getEnvVar('FOURSQUARE_API_KEY', 'dev-api-key');
+export const FOURSQUARE_CLIENT_ID = getEnvVar('EXPO_PUBLIC_FOURSQUARE_CLIENT_ID', 'dev-client-id');
+export const FOURSQUARE_CLIENT_SECRET = getEnvVar(
+  'EXPO_PUBLIC_FOURSQUARE_CLIENT_SECRET',
+  'dev-client-secret'
+);
+export const FOURSQUARE_API_KEY = getEnvVar('EXPO_PUBLIC_FOURSQUARE_API_KEY', 'dev-api-key');
 export const FOURSQUARE_API_URL = 'https://api.foursquare.com/v3';
 
 // Log the loaded values

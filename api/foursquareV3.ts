@@ -10,6 +10,10 @@ import {
   FOURSQUARE_CLIENT_SECRET as CONFIG_CLIENT_SECRET,
   FOURSQUARE_API_URL,
 } from '@/config/foursquare';
+import { validateFoursquareConfig } from '@/utils/env';
+
+// Validate the Foursquare config
+validateFoursquareConfig();
 
 // Use direct config if env vars are not loaded
 const FOURSQUARE_API_KEY = ENV_API_KEY !== 'dev-api-key' ? ENV_API_KEY : CONFIG_API_KEY;
