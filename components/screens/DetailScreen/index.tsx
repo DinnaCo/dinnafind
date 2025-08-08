@@ -328,7 +328,7 @@ export const DetailScreen: React.FC = () => {
 
     if (!isVenueSaved) {
       const venueToSave = { ...venueDetails, iconUrl };
-      console.log('🗺️ venueToSave🗺️🗺️', JSON.stringify(venueToSave, null, 4));
+      console.log('🗺️ venueToSave🗺️🗺️', JSON.stringify(venueToSave));
 
       dispatch(addToBucketList(venueToSave) as any);
       Alert.alert('Saved', `${venueName} has been added to your bucket list!`);

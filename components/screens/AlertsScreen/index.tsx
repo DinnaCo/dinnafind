@@ -110,7 +110,7 @@ export function AlertsScreen() {
       }
     }
   };
-  console.log('🔍 Bucket list items:', JSON.stringify(bucketListItems, null, 2));
+  console.log('🔍 Bucket list items:', JSON.stringify(bucketListItems));
 
   const restaurantsWithLocation = bucketListItems.filter((item: BucketListItem) => {
     return (

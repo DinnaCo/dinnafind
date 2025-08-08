@@ -87,7 +87,7 @@ const venuesSlice = createSlice({
     },
     fetchNearbyVenuesSuccess(state, action: PayloadAction<Venue[]>) {
       console.log(
-        `%c action.payload fetchNearbyVenuesSuccess ${JSON.stringify(action.payload, null, 4)}`,
+        `%c action.payload fetchNearbyVenuesSuccess ${JSON.stringify(action.payload)}`,
         'color:white; background:green; font-size: 20px'
       );
       state.nearby.venues = action.payload;
@@ -98,7 +98,7 @@ const venuesSlice = createSlice({
       state.nearby.loading = false;
       state.nearby.error = action.payload;
       console.log(
-        `%c action.payload fetchNearbyVenuesFailure ${JSON.stringify(action.payload, null, 4)}`,
+        `%c action.payload fetchNearbyVenuesFailure ${JSON.stringify(action.payload)}`,
         'color:white; background:green; font-size: 20px'
       );
     },
@@ -161,7 +161,7 @@ const venuesSlice = createSlice({
       // The actual selection logic is handled in the setSelectedVenue reducer
       state.selectedVenue = null; // Reset selected venue before setting a new one
       console.log(
-        `%c action.payload selectVenue ${JSON.stringify(_action.payload, null, 4)}`,
+        `%c action.payload selectVenue ${JSON.stringify(_action.payload)}`,
         'color:white; background:green; font-size: 20px'
       );
       // Note: The actual selection logic is handled in the setSelectedVenue reducer
@@ -177,7 +177,7 @@ const venuesSlice = createSlice({
     fetchFoursquareDataSuccess(state, action: PayloadAction<string>) {
       state.foursquareData.rawJson = action.payload;
       console.log(
-        `%c action.payload fetchFoursquareDataSuccess ${JSON.stringify(action.payload, null, 4)}`,
+        `%c action.payload fetchFoursquareDataSuccess ${JSON.stringify(action.payload)}`,
         'color:white; background:green; font-size: 20px'
       );
       state.foursquareData.loading = false;
@@ -186,7 +186,7 @@ const venuesSlice = createSlice({
     fetchFoursquareDataFailure(state, action: PayloadAction<string>) {
       state.foursquareData.loading = false;
       console.log(
-        `%c action.payload fetchFoursquareDataFailure ${JSON.stringify(action.payload, null, 4)}`,
+        `%c action.payload fetchFoursquareDataFailure ${JSON.stringify(action.payload)}`,
         'color:white; background:green; font-size: 20px'
       );
       state.foursquareData.error = action.payload;

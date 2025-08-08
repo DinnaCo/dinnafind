@@ -94,5 +94,5 @@ if (__DEV__) {
 
   // Log initial state
   console.log('🏪 Redux Store initialized with Supabase middleware');
-  console.log('📊 Initial State:', JSON.stringify(store.getState(), null, 4));
+  console.log('📊 Initial State:', JSON.stringify(store.getState()));
 }

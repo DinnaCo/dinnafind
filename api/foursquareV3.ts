@@ -45,7 +45,7 @@ class ReactNativeHTTPClient {
 
     console.log('🌐 Making request to:', url);
     console.log(
-      `%c this.headersr ` + JSON.stringify(this.headers, null, 4),
+      `%c this.headersr ` + JSON.stringify(this.headers),
       'color:white; background:green; font-size: 20px'
     );
     console.log('🔑 Authorization header:', this.headers.Authorization ? 'Present' : 'Missing');
