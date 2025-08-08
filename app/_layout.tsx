@@ -6,8 +6,9 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { store } from '@/hooks/redux';
 import { useDeferredDeepLink, parseDeepLink } from '@/hooks/useDeferredDeepLink';
 import { useSimpleDeferredLink } from '@/hooks/useSimpleDeferredLink';
@@ -32,47 +33,108 @@ export default function RootLayout() {
 function RootLayoutContent() {
   // Initialize app (geofencing, permissions, etc.) - MUST be called at top level
   const { isInitializing, initializationStep } = useAppInitialization();
+  const { isAuthenticated, user } = useAuth();
 
   const router = useRouter();
 
-  // Handle deep links
-  const handleDeepLink = (url: string) => {
-    console.log('[DeepLink] Handling URL:', url);
-    const parsed = parseDeepLink(url);
-
-    if (!parsed) {
-      console.log('[DeepLink] Failed to parse URL');
-      return;
+  // Helper function to store deep link for later processing
+  const storeDeepLinkForLater = React.useCallback(async (url: string) => {
+    try {
+      const deepLinkData = {
+        url,
+        timestamp: Date.now(),
+        processed: false,
+      };
+      await AsyncStorage.setItem('dinnafind_pending_deep_link', JSON.stringify(deepLinkData));
+      console.log('[DeepLink] Stored pending deep link for later processing');
+    } catch (error) {
+      console.error('[DeepLink] Error storing pending deep link:', error);
     }
+  }, []);
 
-    console.log('[DeepLink] Parsed:', parsed);
+  // Handle deep links
+  const handleDeepLink = React.useCallback(
+    (url: string) => {
+      console.log('[DeepLink] Handling URL:', url);
+      const parsed = parseDeepLink(url);
 
-    // Add delay to ensure navigation stack is ready
-    setTimeout(() => {
-      // Navigate based on the deep link
-      if (parsed.isRestaurant && parsed.restaurantId) {
-        console.log('[DeepLink] Navigating to restaurant:', parsed.restaurantId);
-        console.log('[DeepLink] Query params:', parsed.queryParams);
-
-        // Check if we should auto-save this venue
-        const shouldAutoSave = parsed.queryParams?.autoSave === 'true';
-
-        // Navigate with only venueId and autoSave (no minimal data)
-        const detailUrl = `/detail?venueId=${parsed.restaurantId}${
-          shouldAutoSave ? '&autoSave=true' : ''
-        }` as const;
-
-        console.log('[DeepLink] Navigating to:', detailUrl);
-        router.push(detailUrl);
-      } else if (parsed.isBucketList) {
-        console.log('[DeepLink] Navigating to bucket list');
-        router.push('/(tabs)/bucket-list');
-      } else if (parsed.isAuth) {
-        console.log('[DeepLink] Navigating to auth callback');
-        router.push('/auth-callback');
+      if (!parsed) {
+        console.log('[DeepLink] Failed to parse URL');
+        return;
       }
-    }, 2000);
-  };
+
+      console.log('[DeepLink] Parsed:', parsed);
+
+      // Add delay to ensure navigation stack is ready
+      setTimeout(() => {
+        // Navigate based on the deep link
+        if (parsed.isRestaurant && parsed.restaurantId) {
+          console.log('[DeepLink] Navigating to restaurant:', parsed.restaurantId);
+          console.log('[DeepLink] Query params:', parsed.queryParams);
+
+          // Check if user is authenticated before allowing venue navigation
+          if (!isAuthenticated || !user) {
+            console.log('[DeepLink] User not authenticated, redirecting to auth');
+            // Store the deep link for later processing after authentication
+            storeDeepLinkForLater(url);
+            router.push('/auth');
+            return;
+          }
+
+          // Check if we should auto-save this venue
+          const shouldAutoSave = parsed.queryParams?.autoSave === 'true';
+
+          // Navigate with only venueId and autoSave (no minimal data)
+          const detailUrl = `/detail?venueId=${parsed.restaurantId}${
+            shouldAutoSave ? '&autoSave=true' : ''
+          }` as const;
+
+          console.log('[DeepLink] Navigating to:', detailUrl);
+          router.push(detailUrl);
+        } else if (parsed.isBucketList) {
+          console.log('[DeepLink] Navigating to bucket list');
+          router.push('/(tabs)/bucket-list');
+        } else if (parsed.isAuth) {
+          console.log('[DeepLink] Navigating to auth callback');
+          router.push('/auth-callback');
+        }
+      }, 2000);
+    },
+    [isAuthenticated, user, router, storeDeepLinkForLater]
+  );
+
+  // Process pending deep links after authentication
+  React.useEffect(() => {
+    const processPendingDeepLink = async () => {
+      if (isAuthenticated && user) {
+        try {
+          const pendingDeepLinkData = await AsyncStorage.getItem('dinnafind_pending_deep_link');
+          if (pendingDeepLinkData) {
+            const data = JSON.parse(pendingDeepLinkData);
+            const oneHourAgo = Date.now() - 60 * 60 * 1000;
+
+            // Only process if the link is less than 1 hour old
+            if (data.timestamp > oneHourAgo && !data.processed) {
+              console.log('[DeepLink] Processing pending deep link:', data.url);
+
+              // Clear the pending deep link
+              await AsyncStorage.removeItem('dinnafind_pending_deep_link');
+
+              // Process the deep link
+              handleDeepLink(data.url);
+            } else {
+              // Clear old pending deep link
+              await AsyncStorage.removeItem('dinnafind_pending_deep_link');
+            }
+          }
+        } catch (error) {
+          console.error('[DeepLink] Error processing pending deep link:', error);
+        }
+      }
+    };
+
+    processPendingDeepLink();
+  }, [isAuthenticated, user, handleDeepLink]);
 
   // Set up deferred deep link handling
   useDeferredDeepLink(handleDeepLink);
