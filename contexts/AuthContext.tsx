@@ -314,10 +314,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await GeofencingService.clearAllGeofences();
       console.log('[AuthContext] Geofences cleared successfully');
 
+ 
       // Clear bucket list data on logout
       dispatch(setBucketListItems([]));
       console.log('[AuthContext] Bucket list cleared successfully');
 
+ 
       console.log('[AuthContext] Signout process complete');
     } catch (error) {
       console.error('[AuthContext] Signout error:', error);
