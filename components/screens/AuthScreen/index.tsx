@@ -2,7 +2,6 @@ import { Icon } from '@rneui/themed';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -18,13 +17,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { signInWithGoogle } from '@/services/GoogleAuthNoSession';
 import { theme } from '@/theme';
+import { SpinningButton } from '@/components/common/SpinningButton';
+import { useAppInitialization } from '@/hooks/useAppInitialization';
 
 export function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, isAuthenticated } = useAuth();
+  const { isInitializing } = useAppInitialization();
   const router = useRouter();
 
   const logo = require('@/assets/images/splash-icon.png');
@@ -43,7 +46,7 @@ export function AuthScreen() {
       return;
     }
 
-    setLoading(true);
+    setEmailLoading(true);
     try {
       const result =
         mode === 'signIn' ? await signIn(email, password) : await signUp(email, password);
@@ -56,12 +59,12 @@ export function AuthScreen() {
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
-      setLoading(false);
+      setEmailLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
+    setGoogleLoading(true);
     try {
       const result = await signInWithGoogle();
       if (!result.success) {
@@ -70,7 +73,7 @@ export function AuthScreen() {
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
@@ -97,7 +100,7 @@ export function AuthScreen() {
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
-              editable={!loading}
+              editable={!emailLoading && !googleLoading && !(isAuthenticated && isInitializing)}
             />
 
             <TextInput
@@ -106,20 +109,15 @@ export function AuthScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
-              editable={!loading}
+              editable={!emailLoading && !googleLoading && !(isAuthenticated && isInitializing)}
             />
 
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+            <SpinningButton
+              title={mode === 'signIn' ? 'Sign In' : 'Sign Up'}
               onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.buttonText}>{mode === 'signIn' ? 'Sign In' : 'Sign Up'}</Text>
-              )}
-            </TouchableOpacity>
+              loading={emailLoading || (isAuthenticated && isInitializing)}
+              disabled={googleLoading}
+            />
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
@@ -127,19 +125,19 @@ export function AuthScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity
-              style={[styles.googleButton, loading && styles.buttonDisabled]}
+            <SpinningButton
+              title="Continue with Google"
               onPress={handleGoogleSignIn}
-              disabled={loading}
-            >
-              <Icon name="google" type="fontisto" size={20} color="white" />
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
+              loading={googleLoading || (isAuthenticated && isInitializing)}
+              disabled={emailLoading}
+              variant="google"
+              icon={{ name: 'google', type: 'fontisto', size: 20, color: 'white' }}
+            />
 
             <TouchableOpacity
               style={styles.switchMode}
               onPress={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}
-              disabled={loading}
+              disabled={emailLoading || googleLoading || (isAuthenticated && isInitializing)}
             >
               <Text style={styles.switchModeText}>
                 {mode === 'signIn'
@@ -152,7 +150,7 @@ export function AuthScreen() {
               <TouchableOpacity
                 style={styles.forgotPassword}
                 onPress={() => router.push('/password-reset')}
-                disabled={loading}
+                disabled={emailLoading || googleLoading || (isAuthenticated && isInitializing)}
               >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
@@ -214,21 +212,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontSize: 16,
   },
-  button: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
-  },
+  // Button styles moved to SpinningButton component
   switchMode: {
     marginTop: 20,
     alignItems: 'center',
@@ -260,20 +244,7 @@ const styles = StyleSheet.create({
     color: theme.colors.grey2,
     fontSize: 14,
   },
-  googleButton: {
-    backgroundColor: '#4285F4',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  googleButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  // Google button styles moved to SpinningButton component
   debugButton: {
     marginTop: 10,
     padding: 10,

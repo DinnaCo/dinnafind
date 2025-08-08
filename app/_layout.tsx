@@ -1,4 +1,4 @@
-import { ActivityIndicator, Text, View } from 'react-native';
+import {} from 'react-native';
 
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -10,13 +10,16 @@ import { store } from '@/hooks/redux';
 import { useDeferredDeepLink, parseDeepLink } from '@/hooks/useDeferredDeepLink';
 import { useSimpleDeferredLink } from '@/hooks/useSimpleDeferredLink';
 import { useAppInitialization } from '@/hooks/useAppInitialization';
+import { AppErrorBoundary } from '@/components/common/AppErrorBoundary';
 
 export default function RootLayout() {
   return (
     <Provider store={store}>
       <AuthProvider>
         <SafeAreaProvider>
-          <RootLayoutContent />
+          <AppErrorBoundary>
+            <RootLayoutContent />
+          </AppErrorBoundary>
         </SafeAreaProvider>
       </AuthProvider>
     </Provider>

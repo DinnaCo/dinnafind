@@ -5,8 +5,6 @@ import { Tabs, Redirect } from 'expo-router';
 
 import { useAppSelector } from '@/store';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAppInitialization } from '@/hooks/useAppInitialization';
-import { LoadingScreen } from '@/components/screens/LoadingScreen';
 
 import { theme } from '@/theme';
 
@@ -25,7 +23,6 @@ const TabBadge: React.FC<{ count: number }> = ({ count }) => {
 
 export default function TabLayout() {
   const { user, loading } = useAuth();
-  const { isInitializing, initializationError } = useAppInitialization();
   const bucketListCount = useAppSelector(state => state.bucketList.items.length);
   const [activeGeofencesCount, setActiveGeofencesCount] = React.useState(0);
 
@@ -59,19 +56,7 @@ export default function TabLayout() {
     return <Redirect href="/auth" />;
   }
 
-  // Show initialization loading screen
-  if (isInitializing) {
-    return (
-      <LoadingScreen
-        message="Setting up your app..."
-        error={initializationError}
-        onRetry={() => {
-          // Retry initialization by triggering a re-render
-          window.location.reload();
-        }}
-      />
-    );
-  }
+  // Note: Removed initialization loading screen - now handled by spinning buttons in auth screen
 
   return (
     <Tabs
