@@ -5,27 +5,30 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { store } from '@/hooks/redux';
+import { store, persistor } from '@/hooks/redux';
 import { useDeferredDeepLink, parseDeepLink } from '@/hooks/useDeferredDeepLink';
 import { useSimpleDeferredLink } from '@/hooks/useSimpleDeferredLink';
 import { useAppInitialization } from '@/hooks/useAppInitialization';
 import { AppErrorBoundary } from '@/components/common/AppErrorBoundary';
-import LoadingScreen from '@/components/screens/LoadingScreen';
+import { LoadingScreen } from '@/components/screens/LoadingScreen';
 
 export default function RootLayout() {
   return (
     <Provider store={store}>
-      <AuthProvider>
-        <SafeAreaProvider>
-          <AppErrorBoundary>
-            <RootLayoutContent />
-          </AppErrorBoundary>
-        </SafeAreaProvider>
-      </AuthProvider>
+      <PersistGate loading={<LoadingScreen />} persistor={persistor}>
+        <AuthProvider>
+          <SafeAreaProvider>
+            <AppErrorBoundary>
+              <RootLayoutContent />
+            </AppErrorBoundary>
+          </SafeAreaProvider>
+        </AuthProvider>
+      </PersistGate>
     </Provider>
   );
 }

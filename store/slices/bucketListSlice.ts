@@ -224,7 +224,12 @@ export const removeFromBucketList = createAsyncThunk(
       throw new Error('Cannot remove an item that belongs to another user');
     }
 
-    return itemId;
+    // Return both itemId and venue information for the middleware
+    return {
+      itemId,
+      venueId: item.venueId || item.venue?.id,
+      venueName: item.venue?.name
+    };
   }
 );
 
@@ -276,8 +281,6 @@ const bucketListSlice = createSlice({
     filters: {} as BucketListFilter,
     loading: false,
     error: null as string | null,
-    masterNotificationsEnabled: true,
-    distanceMiles: 1.25, // Default radius for alerts (approx 2000 meters)
   },
   reducers: {
     // Filter actions
@@ -288,11 +291,6 @@ const bucketListSlice = createSlice({
     clearFilters: state => {
       state.filters = {};
       state.filteredItems = state.items;
-    },
-
-    // Set master notifications toggle
-    setMasterNotificationsEnabled: (state, action: PayloadAction<boolean>) => {
-      state.masterNotificationsEnabled = action.payload;
     },
 
     // Enable or disable notifications for all items
@@ -325,9 +323,6 @@ const bucketListSlice = createSlice({
         state.items[index].notificationsEnabled = enabled;
         state.filteredItems = applyFilters(state.items, state.filters);
       }
-    },
-    setDistanceMiles: (state, action: PayloadAction<number>) => {
-      state.distanceMiles = action.payload;
     },
     // Set bucket list items from Supabase (for data loading)
     setBucketListItems: (state, action: PayloadAction<BucketListItem[]>) => {
@@ -394,7 +389,7 @@ const bucketListSlice = createSlice({
         state.error = null;
       })
       .addCase(removeFromBucketList.fulfilled, (state, action) => {
-        state.items = state.items.filter(item => item.id !== action.payload);
+        state.items = state.items.filter(item => item.id !== action.payload.itemId);
         state.filteredItems = applyFilters(state.items, state.filters);
         state.loading = false;
       })
@@ -428,11 +423,9 @@ const bucketListSlice = createSlice({
 export const {
   setFilters,
   clearFilters,
-  setMasterNotificationsEnabled,
   setAllNotificationsEnabled,
   enableAllNotifications,
   setNotificationEnabled,
-  setDistanceMiles,
   setBucketListItems,
 } = bucketListSlice.actions;
 
@@ -445,9 +438,8 @@ export const selectFilteredBucketListItems = (state: RootState) => state.bucketL
 export const selectBucketListLoading = (state: RootState) => state.bucketList.loading;
 export const selectBucketListError = (state: RootState) => state.bucketList.error;
 export const selectBucketListFilters = (state: RootState) => state.bucketList.filters;
-export const selectMasterNotificationsEnabled = (state: RootState) =>
-  state.bucketList.masterNotificationsEnabled;
-export const selectDistanceMiles = (state: RootState) => state.bucketList.distanceMiles;
+export const selectMasterNotificationsEnabled = (state: RootState) => state.ui.masterNotificationsEnabled;
+export const selectDistanceMiles = (state: RootState) => state.ui.distanceMiles;
 export const selectIsVenueInBucketList = (venueId: string) => (state: RootState) =>
   state.bucketList.items.some(item => item.venue.id === venueId || item.venueId === venueId);
 

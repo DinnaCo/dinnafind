@@ -1,17 +1,22 @@
 import { useEffect, useState } from 'react';
-import { useAppSelector } from '@/store';
+import { useAppSelector, useAppDispatch } from '@/store';
 import GeofencingService from '@/services/GeofencingService';
 import { checkAndRequestLocationServices } from '@/utils/locationHelpers';
 import {
   selectMasterNotificationsEnabled,
+  setMasterNotificationsEnabled,
   selectDistanceMiles,
-} from '@/store/slices/bucketListSlice';
+  setDistanceMiles,
+} from '@/store/slices/uiSlice';
+import { setBucketListItems } from '@/store/slices/bucketListSlice';
 import { BucketListItem } from '@/models/bucket-list';
-import { setAppStateFromUserData } from '@/utils/appStateHelpers';
+
 import { useAuth } from '@/contexts/AuthContext';
+import { SupabaseDataService } from '@/services/supabaseDataService';
 
 export function useAppInitialization() {
   const { user, session } = useAuth();
+  const dispatch = useAppDispatch();
   const bucketListItems = useAppSelector(state => state.bucketList.items) as BucketListItem[];
   const masterEnabled = useAppSelector(selectMasterNotificationsEnabled);
   const distanceMiles = useAppSelector(selectDistanceMiles);
@@ -23,29 +28,56 @@ export function useAppInitialization() {
     if (user && session) {
       initializeApp();
     } else if (!user && !session) {
-      // No user, skip initialization
+      // No user, skip initialization but still allow app to load
+      console.log('[AppInit] No user session, skipping data loading');
       setIsInitializing(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, session]);
 
   /**
-   * Helper function to set all store states from Supabase user data
+   * Load user data from Supabase database
+   * This is separate from persisted state which loads UI and auth state
    */
-  const loadUserData = async (userId: string) => {
+  const loadUserDataFromSupabase = async (userId: string) => {
     console.log('[AppInit] Loading user data from Supabase...');
     setInitializationStep('Loading user data...');
 
     try {
-      const success = await setAppStateFromUserData(userId);
-      if (!success) {
-        setInitializationError('Failed to load user data');
-        return false;
+      // Only load bucket list items from database if local state is empty
+      // This prevents overwriting local deletions on app refresh/login
+      if (bucketListItems.length === 0) {
+        const bucketListItems = await SupabaseDataService.loadBucketListItems(userId);
+        if (bucketListItems.length > 0) {
+          dispatch(setBucketListItems(bucketListItems));
+          console.log(`[AppInit] Loaded ${bucketListItems.length} bucket list items from database`);
+        } else {
+          console.log('[AppInit] No bucket list items found in database');
+        }
+      } else {
+        console.log(
+          `[AppInit] Skipping bucket list load - ${bucketListItems.length} items already in local state`
+        );
       }
+
+      // Load user preferences from database
+      const preferences = await SupabaseDataService.loadUserPreferences(userId);
+      if (preferences) {
+        console.log('[AppInit] Loaded user preferences from database:', preferences);
+
+        // Set user preferences in ui slice
+        if (preferences.masterNotificationsEnabled !== undefined) {
+          dispatch(setMasterNotificationsEnabled(preferences.masterNotificationsEnabled));
+        }
+        if (preferences.distanceMiles !== undefined) {
+          dispatch(setDistanceMiles(preferences.distanceMiles));
+        }
+      }
+
       return true;
     } catch (error) {
-      console.error('[AppInit] Error loading user data:', error);
-      setInitializationError('Failed to load user data');
+      console.error('[AppInit] Error loading user data from Supabase:', error);
+      setInitializationError('Failed to load user data from database');
       return false;
     }
   };
@@ -61,11 +93,13 @@ export function useAppInitialization() {
         throw new Error('No user ID available');
       }
 
-      // Step 1: Load all user data from Supabase
-      setInitializationStep('Loading user preferences...');
-      const dataLoaded = await loadUserData(user.id);
+      // Step 1: Load user data from Supabase (bucket list, preferences)
+      // Note: UI and auth state are already loaded by redux-persist
+      setInitializationStep('Loading user data from database...');
+      const dataLoaded = await loadUserDataFromSupabase(user.id);
       if (!dataLoaded) {
-        throw new Error('Failed to load user data');
+        console.warn('[AppInit] Failed to load user data from database, continuing with cached data');
+        // Continue with initialization even if database load fails
       }
 
       // Step 2: Initialize GeofencingService (loads saved geofences from AsyncStorage)
@@ -136,6 +170,6 @@ export function useAppInitialization() {
     isInitializing,
     initializationError,
     initializationStep,
-    loadUserData,
+    loadUserDataFromSupabase,
   };
 }

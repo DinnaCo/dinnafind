@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { combineReducers, configureStore } from '@reduxjs/toolkit';
+import { persistStore, persistReducer } from 'redux-persist';
 import { useDispatch, useSelector, type TypedUseSelectorHook } from 'react-redux';
 import devToolsEnhancer from 'redux-devtools-expo-dev-plugin';
 
@@ -24,8 +25,22 @@ const rootReducer = {
   location: locationReducer,
 };
 
-// Create root reducer (no longer persisted)
-export const reducer = combineReducers(rootReducer);
+// Create root reducer
+const combinedReducer = combineReducers(rootReducer);
+
+// Configure persistence - only persist UI and auth state
+const persistConfig = {
+  key: 'root',
+  storage: AsyncStorage,
+  whitelist: ['ui', 'auth'], // Only persist UI and auth state
+  blacklist: ['bucketList', 'venues', 'location'], // Don't persist data that comes from DB
+  transforms: [
+    // Custom transforms for complex data if needed
+  ],
+};
+
+// Create persisted reducer
+export const persistedReducer = persistReducer(persistConfig, combinedReducer);
 
 // Setup saga middleware
 const sagaMiddleware = createSagaMiddleware();
@@ -45,14 +60,14 @@ const createDebugger = () => {
   return undefined;
 };
 
-// Configure store with Supabase middleware instead of persist
+// Configure store with hybrid persistence
 export const store = configureStore({
-  reducer,
+  reducer: persistedReducer,
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActionsPaths: ['meta.arg', 'payload.timestamp'],
-        ignoredPaths: ['items.dates'],
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+        ignoredPaths: ['bucketList.items', 'venues.items'],
       },
       thunk: true,
       immutableCheck: {
@@ -62,6 +77,9 @@ export const store = configureStore({
   devTools: false,
   enhancers: getDefaultEnhancers => getDefaultEnhancers().concat(devToolsEnhancer()) as any,
 });
+
+// Create persistor
+export const persistor = persistStore(store);
 
 // Run saga middleware
 sagaMiddleware.run(rootSaga);
@@ -93,6 +111,6 @@ if (__DEV__) {
   };
 
   // Log initial state
-  console.log('🏪 Redux Store initialized with Supabase middleware');
+  console.log('🏪 Redux Store initialized with hybrid persistence');
   console.log('📊 Initial State:', JSON.stringify(store.getState()));
 }

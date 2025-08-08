@@ -6,6 +6,8 @@ const initialState: UIState = {
   theme: 'light',
   networkStatus: 'online',
   hasCompletedOnboarding: false,
+  masterNotificationsEnabled: true,
+  distanceMiles: 1.25,
 };
 
 const uiSlice = createSlice({
@@ -32,10 +34,29 @@ const uiSlice = createSlice({
     resetOnboarding: state => {
       state.hasCompletedOnboarding = false;
     },
+
+    // User preferences actions
+    setMasterNotificationsEnabled: (state, action: PayloadAction<boolean>) => {
+      state.masterNotificationsEnabled = action.payload;
+    },
+    setDistanceMiles: (state, action: PayloadAction<number>) => {
+      state.distanceMiles = action.payload;
+    },
   },
 });
 
-export const { setTheme, toggleTheme, setNetworkStatus, completeOnboarding, resetOnboarding } =
-  uiSlice.actions;
+export const {
+  setTheme,
+  toggleTheme,
+  setNetworkStatus,
+  completeOnboarding,
+  resetOnboarding,
+  setMasterNotificationsEnabled,
+  setDistanceMiles,
+} = uiSlice.actions;
+
+// Selectors
+export const selectMasterNotificationsEnabled = (state: { ui: UIState }) => state.ui.masterNotificationsEnabled;
+export const selectDistanceMiles = (state: { ui: UIState }) => state.ui.distanceMiles;
 
 export default uiSlice.reducer;
