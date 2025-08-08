@@ -1,11 +1,11 @@
+import { makeRedirectUri } from 'expo-auth-session';
 import { Session, User } from '@supabase/supabase-js';
-import Constants from 'expo-constants';
-import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { useAppDispatch } from '@/store';
 import { loginSuccess, logoutSuccess } from '@/store/slices/authSlice';
+import GeofencingService from '@/services/GeofencingService';
 import { supabase } from '@/utils/supabase';
 // This is needed for OAuth redirects
 WebBrowser.maybeCompleteAuthSession();
@@ -123,18 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       } else {
         // Mobile implementation
-        let redirectUrl: string;
-
-        // Check if we're in Expo Go or a standalone app
-        const isExpoGo = Constants.appOwnership === 'expo';
-
-        if (isExpoGo) {
-          // For Expo Go, use the Supabase callback URL
-          redirectUrl = `${supabaseUrl}/auth/v1/callback`;
-        } else {
-          // For standalone apps, use deep linking
-          redirectUrl = Linking.createURL('auth-callback');
-        }
+        const redirectUrl = makeRedirectUri({
+          scheme: 'dinnafind',
+          path: 'auth-callback',
+        });
 
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
@@ -152,33 +144,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw new Error('No auth URL received');
         }
 
-        if (isExpoGo) {
-          // For Expo Go, use openBrowserAsync which will handle the auth flow
-          await WebBrowser.openAuthSessionAsync(data.url);
+        // For standalone apps, use openAuthSessionAsync
+        const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
-          // After the browser closes, check if we have a session
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-
-          if (session) {
-            return { error: null };
-          } else {
-            return { error: { message: 'Please complete the sign-in process in your browser' } };
-          }
-        } else {
-          // For standalone apps, use openAuthSessionAsync
-          const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-
-          if (res.type === 'success') {
-            // The deep link handler will process the authentication
-            return { error: null };
-          } else if (res.type === 'cancel') {
-            return { error: { message: 'Authentication was cancelled' } };
-          }
-
-          return { error: { message: 'Authentication failed' } };
+        if (res.type === 'success') {
+          // The deep link handler will process the authentication
+          return { error: null };
+        } else if (res.type === 'cancel') {
+          return { error: { message: 'Authentication was cancelled' } };
         }
+
+        return { error: { message: 'Authentication failed' } };
       }
     } catch (error: any) {
       return { error };
@@ -187,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    await GeofencingService.clearAllGeofences();
   };
 
   const resetPassword = async (email: string) => {
