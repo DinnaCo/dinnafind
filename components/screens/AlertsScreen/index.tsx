@@ -1,5 +1,5 @@
 import { Icon, Slider } from '@rneui/themed';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Platform, SafeAreaView, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import GeofencingService from '@/services/GeofencingService';
 import LocationPermissionService from '@/services/LocationPermissionService';
@@ -21,6 +21,8 @@ export function AlertsScreen() {
   const masterEnabled = useAppSelector(selectMasterNotificationsEnabled);
   const distanceMiles = useAppSelector(selectDistanceMiles);
   const [permissions, setPermissions] = useState({ foreground: false, background: false });
+  const [sliderValue, setSliderValue] = useState<number>(distanceMiles);
+  const isUpdatingRef = useRef(false);
 
   useEffect(() => {
     checkPermissions();
@@ -31,6 +33,11 @@ export function AlertsScreen() {
     setPermissions(perms);
     console.log('[AlertsScreen] Current permissions:', perms);
   };
+
+  // Keep local slider state in sync if distance changes elsewhere
+  useEffect(() => {
+    setSliderValue(distanceMiles);
+  }, [distanceMiles]);
 
   // Fix type error: ensure bucketListItems is typed, or use type guard
   const restaurantsWithNotificationsEnabled = bucketListItems.filter(
@@ -71,6 +78,7 @@ export function AlertsScreen() {
             latitude: restaurant.venue.geocodes.main.latitude,
             longitude: restaurant.venue.geocodes.main.longitude,
             radius: distanceMiles * 1609.34,
+            venueId: restaurant.venue.id,
           });
           console.log(`[AlertsScreen] Added geofence for: ${restaurant.venue.name}`);
         }
@@ -131,37 +139,50 @@ export function AlertsScreen() {
         </View>
         {/* Distance Slider */}
         <View style={styles.sliderCard}>
-          <Text style={styles.sliderLabel}>Alert Distance: {distanceMiles?.toFixed(2)} miles</Text>
+          <Text style={styles.sliderLabel}>Alert Distance: {sliderValue?.toFixed(2)} miles</Text>
           <Slider
-            value={distanceMiles}
+            value={sliderValue}
             disabled={!masterEnabled} // Disable when master is off
-            onValueChange={async value => {
-              dispatch(setDistanceMiles(value));
+            onValueChange={val => {
+              setSliderValue(val);
+            }}
+            onSlidingComplete={async val => {
+              // Prevent redundant updates
+              if (Number(val.toFixed(2)) === Number(distanceMiles.toFixed(2))) {
+                return;
+              }
 
-              // Only update geofences if master is enabled
+              // Persist to store
+              dispatch(setDistanceMiles(val));
+
+              // Update geofences once per commit when master is enabled
               if (masterEnabled) {
-                // Clear all geofences
-                await GeofencingService.clearAllGeofences();
-
-                // Re-add with new radius
-                for (const restaurant of bucketListItems as BucketListItem[]) {
-                  if (
-                    restaurant.notificationsEnabled &&
-                    restaurant.venue?.geocodes?.main?.latitude &&
-                    restaurant.venue?.geocodes?.main?.longitude
-                  ) {
-                    await GeofencingService.addGeofence({
-                      id: restaurant.id,
-                      name: restaurant.venue.name,
-                      latitude: restaurant.venue.geocodes.main.latitude,
-                      longitude: restaurant.venue.geocodes.main.longitude,
-                      radius: value * 1609.34,
-                    });
+                if (isUpdatingRef.current) return;
+                isUpdatingRef.current = true;
+                try {
+                  await GeofencingService.clearAllGeofences();
+                  for (const restaurant of bucketListItems as BucketListItem[]) {
+                    if (
+                      restaurant.notificationsEnabled &&
+                      restaurant.venue?.geocodes?.main?.latitude &&
+                      restaurant.venue?.geocodes?.main?.longitude
+                    ) {
+                      await GeofencingService.addGeofence({
+                        id: restaurant.id,
+                        name: restaurant.venue.name,
+                        latitude: restaurant.venue.geocodes.main.latitude,
+                        longitude: restaurant.venue.geocodes.main.longitude,
+                        radius: val * 1609.34,
+                        venueId: restaurant.venue.id,
+                      });
+                    }
                   }
+                  console.log(
+                    `[AlertsScreen] Updated all geofence radii to ${val.toFixed(2)} miles`
+                  );
+                } finally {
+                  isUpdatingRef.current = false;
                 }
-                console.log(
-                  `[AlertsScreen] Updated all geofence radii to ${value.toFixed(2)} miles`
-                );
               }
             }}
             minimumValue={0.1}
