@@ -121,11 +121,11 @@ export const fetchBucketList = createAsyncThunk('bucketList/fetch', async (_, { 
   // Since we're using redux-persist, the items are already in state
   // We just need to enhance them with venue details if needed
   const items = state.bucketList.items;
-  console.log('Current items in state:', JSON.stringify(items, null, 4));
+  console.log('Current items in state:', JSON.stringify(items));
 
   // Enhance items with venue details if needed
   const enhancedItems = await enhanceBucketListWithVenueDetails(items);
-  console.log('Enhanced items with venue details:', JSON.stringify(enhancedItems, null, 4));
+  console.log('Enhanced items with venue details:', JSON.stringify(enhancedItems));
 
   return enhancedItems;
 });

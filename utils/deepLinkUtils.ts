@@ -45,7 +45,7 @@ export function parseVenueDeepLink(url: string): { venueId: string; autoSave: bo
 
     const pathPart = url.replace('dinnafind://restaurant/', '');
     const [venueId, ...rest] = pathPart.split('/');
-    console.log('venueId ', JSON.stringify({ venueId, rest }, null, 2));
+    console.log('venueId ', JSON.stringify({ venueId, rest }));
 
     if (!venueId) {
       return null;
@@ -55,7 +55,7 @@ export function parseVenueDeepLink(url: string): { venueId: string; autoSave: bo
     const queryStart = venueId.indexOf('?');
     let actualVenueId = venueId;
     let autoSave = false;
-    console.log('queryStart  ', JSON.stringify({ queryStart }, null, 2));
+    console.log('queryStart  ', JSON.stringify({ queryStart }));
     if (queryStart > -1) {
       actualVenueId = venueId.substring(0, queryStart);
       const queryString = venueId.substring(queryStart + 1);

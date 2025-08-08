@@ -45,7 +45,7 @@ TaskManager.defineTask(
           : eventType;
       console.log(
         `[GeofencingService] Geofence event: ${eventTypeStr} | Region:`,
-        JSON.stringify(region, null, 2)
+        JSON.stringify(region)
       );
       if (eventType === Location.GeofencingEventType.Enter) {
         console.log('[GeofencingService] ENTER event triggered for region:', region.identifier);
@@ -106,7 +106,7 @@ class GeofencingService {
   async addGeofence(geofence: Geofence): Promise<void> {
     this.geofences.push(geofence);
     console.log('[GeofencingService] Geofence added:', geofence);
-    console.log('[GeofencingService] All geofences:', JSON.stringify(this.geofences, null, 2));
+    console.log('[GeofencingService] All geofences:', JSON.stringify(this.geofences));
     await this._saveGeofences();
     await this._updateGeofences();
   }
@@ -114,7 +114,7 @@ class GeofencingService {
   async removeGeofence(id: string): Promise<void> {
     this.geofences = this.geofences.filter(g => g.id !== id);
     console.log('[GeofencingService] Geofence removed:', id);
-    console.log('[GeofencingService] All geofences:', JSON.stringify(this.geofences, null, 2));
+    console.log('[GeofencingService] All geofences:', JSON.stringify(this.geofences));
     await this._saveGeofences();
     await this._updateGeofences();
   }
@@ -186,7 +186,7 @@ class GeofencingService {
 
   // Debug method to log all geofences
   logAllGeofences() {
-    console.log('[GeofencingService] Current geofences:', JSON.stringify(this.geofences, null, 2));
+    console.log('[GeofencingService] Current geofences:', JSON.stringify(this.geofences));
   }
 
   // Initialize the service
