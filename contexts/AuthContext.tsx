@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { useAppDispatch } from '@/store';
 import { loginSuccess, logoutSuccess } from '@/store/slices/authSlice';
+import { setBucketListItems } from '@/store/slices/bucketListSlice';
 import { supabase } from '@/utils/supabase';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
@@ -312,6 +313,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await GeofencingService.clearAllGeofences();
       console.log('[AuthContext] Geofences cleared successfully');
+
+      // Clear bucket list data on logout
+      dispatch(setBucketListItems([]));
+      console.log('[AuthContext] Bucket list cleared successfully');
 
       console.log('[AuthContext] Signout process complete');
     } catch (error) {
