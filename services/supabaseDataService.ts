@@ -96,7 +96,7 @@ export class SupabaseDataService {
 
       const bucketListItems = data.map(
         (item: SupabaseBucketListItem): BucketListItem => ({
-          id: item.id,
+          id: item.venue_id, // Use venue_id as the ID to match how new items are created
           venueId: item.venue_id,
           userId: item.user_id,
           venue: {
