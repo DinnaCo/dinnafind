@@ -4,7 +4,7 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const GEOFENCE_TASK_NAME = 'MINIMAL_GEOFENCE_TASK';
-const NOTIFICATION_COOLDOWN = 5 * 60 * 1000 / 10; // 5 minutes in milliseconds
+const NOTIFICATION_COOLDOWN = 1 * 60 * 1000 / 10; // 1 minutes in milliseconds
 const STORAGE_KEY = 'dinnafind_geofences';
 
 type Geofence = {
