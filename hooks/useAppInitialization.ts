@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAppSelector, useAppDispatch, store } from '@/store';
+import { useAppSelector, useAppDispatch } from '@/store';
 import GeofencingService from '@/services/GeofencingService';
 import { checkAndRequestLocationServices } from '@/utils/locationHelpers';
 import {
@@ -129,20 +129,14 @@ export function useAppInitialization() {
 
   const rebuildGeofencesFromState = async () => {
     console.log('[AppInit] Rebuilding geofences from state...');
-
-    // Get current state from Redux store to avoid stale closure
-    const currentState = store.getState();
-    const currentBucketListItems = currentState.bucketList.items as BucketListItem[];
-    const currentDistanceMiles = currentState.ui.distanceMiles;
-
-    console.log('[AppInit] Bucket list items:', currentBucketListItems.length);
+    console.log('[AppInit] Bucket list items:', bucketListItems.length);
 
     // Clear existing geofences to avoid duplicates
     await GeofencingService.clearAllGeofences();
 
     // Add geofences for items with notifications enabled
     let addedCount = 0;
-    for (const item of currentBucketListItems) {
+    for (const item of bucketListItems) {
       if (
         item.notificationsEnabled &&
         item.venue?.geocodes?.main?.latitude &&
@@ -153,7 +147,7 @@ export function useAppInitialization() {
           name: item.venue.name,
           latitude: item.venue.geocodes.main.latitude,
           longitude: item.venue.geocodes.main.longitude,
-          radius: currentDistanceMiles * 1609.34, // Convert miles to meters
+          radius: distanceMiles * 1609.34, // Convert miles to meters
           venueId: item.venue.id,
         });
         addedCount++;
