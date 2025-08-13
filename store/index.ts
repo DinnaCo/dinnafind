@@ -1,0 +1,153 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { combineReducers, configureStore } from '@reduxjs/toolkit';
+import { persistStore, persistReducer, createMigrate } from 'redux-persist';
+import { useDispatch, useSelector, type TypedUseSelectorHook } from 'react-redux';
+import devToolsEnhancer from 'redux-devtools-expo-dev-plugin';
+
+import { rootSaga } from './rootSaga';
+import { geofencingMiddleware } from './geofencingMiddleware';
+import { supabaseMiddleware } from './supabaseMiddleware';
+
+// Import reducers
+import authReducer from './slices/authSlice';
+import bucketListReducer from './slices/bucketListSlice';
+import uiReducer from './slices/uiSlice';
+import venuesReducer from './slices/venuesSlice';
+import locationReducer from './slices/locationSlice';
+import { logger } from '@/utils/logger';
+const createSagaMiddleware = require('redux-saga').default;
+
+// Combine all reducers
+const rootReducer = {
+  auth: authReducer,
+  venues: venuesReducer,
+  bucketList: bucketListReducer,
+  ui: uiReducer,
+  location: locationReducer,
+};
+
+// Create root reducer
+const combinedReducer = combineReducers(rootReducer);
+
+// Redux Persist migrations
+const migrations = {
+  // Version 2: Migrate alertDistance to notificationDistance in bucket list items
+  2: (state: any) => {
+    logger.info('Running Redux Persist migration v2: alertDistance → notificationDistance');
+
+    // Only migrate bucketList if it exists (it's normally blacklisted but could exist from old versions)
+    if (state.bucketList?.items) {
+      const itemsToMigrate = state.bucketList.items.filter(
+        (item: any) => item.alertDistance !== undefined && item.notificationDistance === undefined
+      );
+
+      if (itemsToMigrate.length > 0) {
+        logger.info(`Migrating ${itemsToMigrate.length} items from alertDistance to notificationDistance`);
+
+        state.bucketList.items = state.bucketList.items.map((item: any) => {
+          if (item.alertDistance !== undefined && item.notificationDistance === undefined) {
+            const { alertDistance, ...rest } = item;
+            return {
+              ...rest,
+              notificationDistance: alertDistance,
+            };
+          }
+          return item;
+        });
+      } else {
+        logger.info('No bucket list items require migration');
+      }
+    }
+
+    return state;
+  },
+};
+
+// Configure persistence - only persist UI and auth state
+const persistConfig = {
+  key: 'root',
+  storage: AsyncStorage,
+  version: 2, // Bumped from 1 to 2 for alertDistance → notificationDistance migration
+  migrate: createMigrate(migrations, { debug: __DEV__ }),
+  whitelist: ['ui', 'auth'], // Only persist UI and auth state
+  blacklist: ['bucketList', 'venues', 'location'], // Don't persist data that comes from DB
+  transforms: [
+    // Custom transforms for complex data if needed
+  ],
+};
+
+// Create persisted reducer
+export const persistedReducer = persistReducer(persistConfig, combinedReducer);
+
+// Setup saga middleware
+const sagaMiddleware = createSagaMiddleware();
+
+// Redux DevTools enhancer for React Native
+const createDebugger = () => {
+  // For React Native Debugger
+  const composeEnhancers = (globalThis as any).__REDUX_DEVTOOLS_EXTENSION_COMPOSE__;
+  if (composeEnhancers) {
+    return composeEnhancers({
+      name: 'DinnaFind Mobile',
+      trace: true,
+      traceLimit: 25,
+    });
+  }
+
+  return undefined;
+};
+
+// Configure store with hybrid persistence
+export const store = configureStore({
+  reducer: persistedReducer,
+  middleware: getDefaultMiddleware =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+        ignoredPaths: ['bucketList.items', 'venues.items'],
+      },
+      thunk: true,
+      immutableCheck: {
+        warnAfter: 128,
+      },
+    }).concat(sagaMiddleware, geofencingMiddleware, supabaseMiddleware),
+  devTools: false,
+  enhancers: getDefaultEnhancers => getDefaultEnhancers().concat(devToolsEnhancer()) as any,
+});
+
+// Create persistor
+export const persistor = persistStore(store);
+
+// Run saga middleware
+sagaMiddleware.run(rootSaga);
+
+// Export types
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+export type { VenuesState } from '@/store/slices/venuesSlice';
+
+// Create typed hooks
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
+
+// Development tools and debugging helpers
+if (__DEV__ && process.env.APP_VARIANT !== 'test') {
+  // Action dispatchers for debugging
+  (globalThis as any).debugActions = {
+    fetchBucketList: () => store.dispatch({ type: 'bucketList/fetchBucketList' }),
+    addTestItem: () =>
+      store.dispatch({
+        type: 'bucketList/addToBucketList',
+        payload: {
+          fsq_id: `test-venue-${Date.now()}`,
+          name: 'Test Restaurant',
+          categories: [{ name: 'Restaurant' }],
+          location: { formatted_address: 'Test Address' },
+        },
+      }),
+  };
+
+  // Log initial state
+  logger.info('🏪 Redux Store initialized with hybrid persistence');
+  logger.info('📊 Initial State:', JSON.stringify(store.getState()));
+}
