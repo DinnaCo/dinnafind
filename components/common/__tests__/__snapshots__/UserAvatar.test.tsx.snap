@@ -1,0 +1,40 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`UserAvatar matches snapshot 1`] = `
+<View
+  style={
+    [
+      {
+        "alignItems": "center",
+        "justifyContent": "center",
+        "overflow": "hidden",
+      },
+      {
+        "backgroundColor": "hsl(87, 70%, 60%)",
+        "borderRadius": 40,
+        "height": 80,
+        "width": 80,
+      },
+      undefined,
+    ]
+  }
+>
+  <Text
+    style={
+      [
+        {
+          "fontWeight": "600",
+          "textAlign": "center",
+        },
+        {
+          "color": "white",
+          "fontSize": 32,
+        },
+      ]
+    }
+    testID="user-avatar-initials"
+  >
+    SU
+  </Text>
+</View>
+`;

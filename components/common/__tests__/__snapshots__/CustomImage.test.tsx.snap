@@ -1,0 +1,88 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`CustomImage renders correctly with source 1`] = `
+<View
+  style={
+    [
+      {
+        "alignItems": "center",
+        "justifyContent": "center",
+        "overflow": "hidden",
+      },
+      undefined,
+      {
+        "backgroundColor": "#E1E1E1",
+      },
+    ]
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#888",
+        "fontSize": 12,
+        "textAlign": "center",
+      }
+    }
+  >
+    Image Placeholder
+  </Text>
+  <Text
+    numberOfLines={1}
+    style={
+      {
+        "color": "#999",
+        "fontSize": 10,
+        "maxWidth": "90%",
+      }
+    }
+  >
+    https://example.com/image.png
+  </Text>
+</View>
+`;
+
+exports[`CustomImage renders correctly with style 1`] = `
+<View
+  style={
+    [
+      {
+        "alignItems": "center",
+        "justifyContent": "center",
+        "overflow": "hidden",
+      },
+      {
+        "height": 100,
+        "width": 100,
+      },
+      {
+        "backgroundColor": "#E1E1E1",
+      },
+    ]
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#888",
+        "fontSize": 12,
+        "textAlign": "center",
+      }
+    }
+  >
+    Image Placeholder
+  </Text>
+  <Text
+    numberOfLines={1}
+    style={
+      {
+        "color": "#999",
+        "fontSize": 10,
+        "maxWidth": "90%",
+      }
+    }
+  >
+    https://example.com/image.png
+  </Text>
+</View>
+`;

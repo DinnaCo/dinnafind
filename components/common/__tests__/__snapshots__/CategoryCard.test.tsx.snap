@@ -1,0 +1,75 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`CategoryCard renders correctly 1`] = `
+<View
+  accessibilityState={
+    {
+      "busy": undefined,
+      "checked": undefined,
+      "disabled": undefined,
+      "expanded": undefined,
+      "selected": undefined,
+    }
+  }
+  accessibilityValue={
+    {
+      "max": undefined,
+      "min": undefined,
+      "now": undefined,
+      "text": undefined,
+    }
+  }
+  accessible={true}
+  collapsable={false}
+  focusable={true}
+  onClick={[Function]}
+  onResponderGrant={[Function]}
+  onResponderMove={[Function]}
+  onResponderRelease={[Function]}
+  onResponderTerminate={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  style={
+    {
+      "alignItems": "center",
+      "marginHorizontal": 8,
+      "opacity": 1,
+    }
+  }
+>
+  <View
+    style={
+      [
+        {
+          "alignItems": "center",
+          "borderRadius": 30,
+          "height": 60,
+          "justifyContent": "center",
+          "marginBottom": 8,
+          "width": 60,
+        },
+        {
+          "backgroundColor": "#FF0000",
+        },
+      ]
+    }
+  >
+    <Icon
+      color="white"
+      name="pizza-slice"
+      size={24}
+    />
+  </View>
+  <Text
+    style={
+      {
+        "color": "#212121",
+        "fontSize": 14,
+        "textAlign": "center",
+      }
+    }
+  >
+    Pizza
+  </Text>
+</View>
+`;
