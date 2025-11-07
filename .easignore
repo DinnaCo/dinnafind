@@ -1,0 +1,193 @@
+# EAS Build Ignore File
+# This file tells EAS which files and directories to exclude during builds
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+
+# Development files
+.env
+.env.local
+.env.production.local
+.env.example
+*.log
+*.tsbuildinfo
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+docs/
+README.md
+CHANGELOG.md
+RELEASE_CHECKLIST.md
+TOKENS_SECRETS.md
+
+# Scripts and tools
+scripts/
+.husky/
+.eslintrc*
+.prettierrc*
+.eslintignore
+.prettierignore
+.expo/
+# Testing
+__tests__/
+__mocks__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+setupTests.ts
+jest.config.*
+coverage/
+
+# Build outputs
+dist*/
+web-build/
+android/
+ios/
+*.apk
+*.aab
+*.ipa
+
+# Expo
+.expo/
+expo-env.d.ts
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# Lock files (keep these for reproducible builds)
+# bun.lockb
+# package-lock.json
+# yarn.lock
+
+# Local development
+.env*.local
+.env.production.local
+.env.development.local
+
+# Debug and development
+debug/
+debug-stash/
+*.orig
+*.rej
+
+# Platform specific (keep these for builds)
+# android/
+# ios/
+
+# Assets that might be large
+assets/sounds/
+assets/images/*.psd
+assets/images/*.ai
+assets/images/*.sketch
+
+# Development certificates and keys
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.keystore
+*.jks
+*.pem
+
+# Metro cache
+.metro-health-check*
+metro.config.js
+
+# TypeScript
+tsconfig.json
+*.d.ts
+
+# Package manager
+.npmrc
+.yarnrc
+.yarnrc.yml
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+android/
+ios/
+
+# Development
+.vscode
+docs/*.*
+# expo
+.expo/
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+credentials
+.expo/
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+.env*
+env.txt
+eas.local.json
+# typescript
+*.tsbuildinfo
+
+# debug files
+debug-stash/
+
+assets/images/icon.icon/Assets/favicon.png
+env.txt
+env.txt
+.env.development
+.env.preview
+.env.production
+.env.test
+eas.local.json
+env.txt
+
+.env.local
