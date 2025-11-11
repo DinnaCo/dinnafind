@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Post-merge hook: Regenerate Supabase types after pulling from remote
+# This ensures TypeScript types stay in sync with the database schema
+
+echo "🔄 Running post-merge hook: Regenerating Supabase types..."
+
+# Check if supabase CLI is available
+if ! command -v supabase &> /dev/null; then
+    echo "⚠️  Supabase CLI not found. Skipping type generation."
+    echo "   Install with: brew install supabase/tap/supabase"
+    exit 0
+fi
+
+# Check if logged in to Supabase
+if ! supabase projects list &> /dev/null 2>&1; then
+    echo "⚠️  Not logged in to Supabase. Skipping type generation."
+    echo "   Run: supabase login"
+    exit 0
+fi
+
+# Get project ID from environment or use default
+PROJECT_ID="${SUPABASE_PROJECT_ID:-}"
+
+if [ -z "$PROJECT_ID" ]; then
+    echo "⚠️  SUPABASE_PROJECT_ID not set. Skipping type generation."
+    echo "   Set it with: export SUPABASE_PROJECT_ID=your-project-id"
+    exit 0
+fi
+
+# Generate types
+echo "📝 Generating types for project: $PROJECT_ID"
+supabase gen types typescript --project-id "$PROJECT_ID" > types/supabase.ts
+
+if [ $? -eq 0 ]; then
+    echo "✅ Supabase types regenerated successfully!"
+else
+    echo "❌ Failed to generate Supabase types"
+    exit 1
+fi
