@@ -1,0 +1,162 @@
+name: Version Bump
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  version-bump:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine version bump type
+        id: bump-type
+        run: |
+          # Check PR labels first (highest priority)
+          LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+
+          if echo "$LABELS" | grep -q "release:major"; then
+            echo "type=major" >> $GITHUB_OUTPUT
+            echo "📦 Version bump: MAJOR (from label)"
+            exit 0
+          fi
+
+          if echo "$LABELS" | grep -q "release:minor"; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+            echo "📦 Version bump: MINOR (from label)"
+            exit 0
+          fi
+
+          if echo "$LABELS" | grep -q "release:patch"; then
+            echo "type=patch" >> $GITHUB_OUTPUT
+            echo "📦 Version bump: PATCH (from label)"
+            exit 0
+          fi
+
+          # Analyze commits in the PR
+          PR_COMMITS=$(git log --format="%s" origin/main..HEAD 2>/dev/null || echo "")
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          ALL_TEXT="$PR_TITLE $PR_COMMITS"
+
+          echo "Analyzing: $ALL_TEXT"
+
+          # Check for breaking changes
+          if echo "$ALL_TEXT" | grep -qiE "BREAKING[ -]CHANGE|^break:|^breaking:"; then
+            echo "type=major" >> $GITHUB_OUTPUT
+            echo "📦 Version bump: MAJOR (breaking change detected)"
+            exit 0
+          fi
+
+          # Check for features
+          if echo "$ALL_TEXT" | grep -qiE "^feat(\(.*\))?:|^feature(\(.*\))?:"; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+            echo "📦 Version bump: MINOR (feature detected)"
+            exit 0
+          fi
+
+          # Check for fixes, chores, docs, etc. (patch-level)
+          if echo "$ALL_TEXT" | grep -qiE "^fix(\(.*\))?:|^chore(\(.*\))?:|^docs(\(.*\))?:|^style(\(.*\))?:|^refactor(\(.*\))?:|^perf(\(.*\))?:|^test(\(.*\))?:|^ci(\(.*\))?:"; then
+            echo "type=patch" >> $GITHUB_OUTPUT
+            echo "📦 Version bump: PATCH (fix/chore detected)"
+            exit 0
+          fi
+
+          # Default to patch for any other merged PR
+          echo "type=patch" >> $GITHUB_OUTPUT
+          echo "📦 Version bump: PATCH (default)"
+
+      - name: Bump version
+        run: |
+          BUMP_TYPE="${{ steps.bump-type.outputs.type }}"
+
+          # Read current version
+          CURRENT_VERSION=$(node -p "require('./app.json').expo.version")
+          echo "Current version: $CURRENT_VERSION"
+
+          # Parse version parts
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+          # Bump based on type
+          case "$BUMP_TYPE" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "New version: $NEW_VERSION"
+
+          # Update app.json
+          node -e "
+            const fs = require('fs');
+            const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            appJson.expo.version = '$NEW_VERSION';
+            if (appJson.expo.ios) {
+              appJson.expo.ios.buildNumber = String(parseInt(appJson.expo.ios.buildNumber || '1') + 1);
+            }
+            if (appJson.expo.android) {
+              appJson.expo.android.versionCode = (appJson.expo.android.versionCode || 1) + 1;
+            }
+            fs.writeFileSync('app.json', JSON.stringify(appJson, null, 2) + '\n');
+          "
+
+          # Update package.json
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$NEW_VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Version bumped to $NEW_VERSION"
+
+      - name: Commit and push
+        run: |
+          git add app.json package.json
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+            exit 0
+          fi
+
+          NEW_VERSION=$(node -p "require('./app.json').expo.version")
+          git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
+          git push
+
+      - name: Create release tag
+        run: |
+          NEW_VERSION=$(node -p "require('./app.json').expo.version")
+          git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
+          git push origin "v$NEW_VERSION"
+          echo "🏷️ Created tag v$NEW_VERSION"
